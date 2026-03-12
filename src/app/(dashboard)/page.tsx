@@ -1,0 +1,62 @@
+import { KPICards } from "@/components/dashboard/kpi-cards";
+import { RecentLeads } from "@/components/dashboard/recent-leads";
+import { SourceChart } from "@/components/dashboard/source-chart";
+import { LeadFunnel } from "@/components/dashboard/lead-funnel";
+import { db } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+
+export default async function DashboardPage() {
+  const { orgId } = await auth();
+  if (!orgId) return <div className="p-6 text-center text-zinc-400">Please create or select an organization to get started.</div>;
+
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const [totalLeads, leadsThisWeek, hotLeads, totalProperties, recentLeads, sourceBreakdown, statusBreakdown] = await Promise.all([
+    db.lead.count({ where: { orgId } }),
+    db.lead.count({ where: { orgId, createdAt: { gte: weekAgo } } }),
+    db.lead.count({ where: { orgId, tier: "HOT" } }),
+    db.property.count({ where: { orgId, status: "ACTIVE" } }),
+    db.lead.findMany({
+      where: { orgId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true, name: true, platform: true, tier: true, score: true, createdAt: true, preferredArea: true },
+    }),
+    db.lead.groupBy({ by: ["platform"], where: { orgId }, _count: true }),
+    db.lead.groupBy({ by: ["status"], where: { orgId }, _count: true }),
+  ]);
+
+  const contactedCount = statusBreakdown
+    .filter(s => ["CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION"].includes(s.status))
+    .reduce((sum, s) => sum + s._count, 0);
+  const convertedCount = statusBreakdown.find(s => s.status === "CONVERTED")?._count ?? 0;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm text-zinc-500">Your real estate lead intelligence at a glance</p>
+      </div>
+
+      <KPICards kpis={{
+        totalLeads,
+        leadsThisWeek,
+        hotLeads,
+        totalProperties,
+        contactRate: totalLeads > 0 ? Math.round((contactedCount / totalLeads) * 100) : 0,
+        conversionRate: totalLeads > 0 ? Math.round((convertedCount / totalLeads) * 100) : 0,
+      }} />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RecentLeads leads={recentLeads} />
+        <SourceChart data={sourceBreakdown.map(s => ({ platform: s.platform, count: s._count }))} />
+      </div>
+
+      <LeadFunnel stages={["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED"].map(stage => ({
+        stage,
+        count: statusBreakdown.find(s => s.status === stage)?._count ?? 0,
+      }))} />
+    </div>
+  );
+}

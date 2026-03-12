@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  clerkOrgId  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  properties  Property[]
+  leads       Lead[]
+  campaigns   Campaign[]
+  scrapingSources ScrapingSource[]
+  templates   MessageTemplate[]
+  teamMembers TeamMember[]
+}
+
+model TeamMember {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  orgId       String
+  role        Role     @default(AGENT)
+  name        String
+  email       String
+  createdAt   DateTime @default(now())
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  assignedLeads Lead[]
+
+  @@unique([clerkUserId, orgId])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+model Property {
+  id              String   @id @default(cuid())
+  orgId           String
+  name            String
+  builderName     String?
+  reraNumber      String?
+  location        String
+  area            String
+  city            String   @default("Hyderabad")
+  latitude        Float?
+  longitude       Float?
+
+  propertyType    PropertyType
+  unitTypes       Json
+  amenities       String[]
+  usps            String[]
+  priceMin        BigInt?
+  priceMax        BigInt?
+  possessionDate  DateTime?
+  status          PropertyStatus    @default(ACTIVE)
+
+  brochureUrl     String?
+  imagesUrls      String[]
+  extractedData   Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  matches         LeadPropertyMatch[]
+
+  @@index([orgId, area])
+  @@index([orgId, status])
+}
+
+enum PropertyType {
+  APARTMENT
+  VILLA
+  PLOT
+  COMMERCIAL
+  PENTHOUSE
+  INDEPENDENT_HOUSE
+}
+
+enum PropertyStatus {
+  ACTIVE
+  SOLD_OUT
+  UPCOMING
+  ARCHIVED
+}
+
+model Lead {
+  id              String   @id @default(cuid())
+  orgId           String
+  assignedToId    String?
+
+  name            String?
+  email           String?
+  phone           String?
+  platform        Platform
+  platformUserId  String?
+  profileUrl      String?
+  sourceUrl       String?
+
+  originalText    String?
+  budget          String?
+  budgetMin       BigInt?
+  budgetMax       BigInt?
+  preferredArea   String[]
+  propertyType    String?
+  timeline        String?
+  buyerPersona    BuyerPersona?
+  intentSignals   Json?
+
+  score           Int      @default(0)
+  scoreBreakdown  Json?
+  tier            LeadTier @default(COLD)
+
+  enrichedData    Json?
+  enrichedAt      DateTime?
+
+  status          LeadStatus @default(NEW)
+  optInWhatsApp   Boolean   @default(false)
+  optInEmail      Boolean   @default(false)
+  dndChecked      Boolean   @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  assignedTo      TeamMember?  @relation(fields: [assignedToId], references: [id])
+  matches         LeadPropertyMatch[]
+  outreachEvents  OutreachEvent[]
+  coachSessions   CoachSession[]
+
+  @@unique([orgId, platform, platformUserId])
+  @@index([orgId, tier, status])
+  @@index([orgId, score])
+  @@index([orgId, createdAt])
+}
+
+enum Platform {
+  REDDIT
+  FACEBOOK
+  TWITTER
+  INSTAGRAM
+  QUORA
+  LINKEDIN
+  TELEGRAM
+  WHATSAPP
+  GOOGLE_MAPS
+  NOBROKER
+  NINETY_NINE_ACRES
+  MAGICBRICKS
+  COMMONFLOOR
+  YOUTUBE
+  MANUAL
+  WEBSITE
+}
+
+enum BuyerPersona {
+  IT_PROFESSIONAL
+  NRI
+  FIRST_TIME_BUYER
+  INVESTOR
+  LUXURY_BUYER
+  FAMILY_UPGRADER
+}
+
+enum LeadTier {
+  HOT
+  WARM
+  COLD
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  ENGAGED
+  SITE_VISIT
+  NEGOTIATION
+  CONVERTED
+  LOST
+  NURTURE
+}
+
+model LeadPropertyMatch {
+  id           String   @id @default(cuid())
+  leadId       String
+  propertyId   String
+  matchScore   Int
+  matchReasons Json
+  aiSummary    String?
+  status       MatchStatus @default(SUGGESTED)
+  createdAt    DateTime @default(now())
+
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, propertyId])
+  @@index([leadId, matchScore])
+}
+
+enum MatchStatus {
+  SUGGESTED
+  SENT_TO_LEAD
+  INTERESTED
+  NOT_INTERESTED
+  SITE_VISIT_BOOKED
+}
+
+model OutreachEvent {
+  id          String   @id @default(cuid())
+  leadId      String
+  channel     OutreachChannel
+  direction   Direction
+  templateId  String?
+  content     String?
+  status      OutreachStatus @default(PENDING)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  repliedAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  template    MessageTemplate? @relation(fields: [templateId], references: [id])
+}
+
+enum OutreachChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+  INSTAGRAM_DM
+  PHONE_CALL
+}
+
+enum Direction {
+  OUTBOUND
+  INBOUND
+}
+
+enum OutreachStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  REPLIED
+  FAILED
+  OPTED_OUT
+}
+
+model MessageTemplate {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  channel     OutreachChannel
+  category    TemplateCategory
+  subject     String?
+  body        String
+  variables   String[]
+  isApproved  Boolean  @default(false)
+  metaId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  events      OutreachEvent[]
+}
+
+enum TemplateCategory {
+  FIRST_CONTACT
+  BROCHURE_SHARE
+  SITE_VISIT
+  FOLLOW_UP
+  PRICE_UPDATE
+  MARKET_UPDATE
+  NRI_SPECIFIC
+  TESTIMONIAL
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  status      CampaignStatus @default(DRAFT)
+  steps       Json
+  targetTier  LeadTier?
+  targetPersona BuyerPersona?
+  startedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model ScrapingSource {
+  id          String   @id @default(cuid())
+  orgId       String
+  platform    Platform
+  identifier  String
+  displayName String
+  keywords    String[]
+  isActive    Boolean  @default(true)
+  schedule    String   @default("0 */6 * * *")
+  lastRunAt   DateTime?
+  lastRunLeads Int     @default(0)
+  createdAt   DateTime @default(now())
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  runs        ScrapingRun[]
+
+  @@unique([orgId, platform, identifier])
+}
+
+model ScrapingRun {
+  id          String   @id @default(cuid())
+  sourceId    String
+  status      RunStatus @default(RUNNING)
+  postsScanned Int     @default(0)
+  leadsFound  Int      @default(0)
+  errors      Json?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+
+  source      ScrapingSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, startedAt])
+}
+
+enum RunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model CoachSession {
+  id          String   @id @default(cuid())
+  leadId      String?
+  userId      String
+  type        CoachType
+  input       String
+  response    Json
+  createdAt   DateTime @default(now())
+
+  lead        Lead? @relation(fields: [leadId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+enum CoachType {
+  CONVERSATION_ANALYSIS
+  MESSAGE_GENERATION
+  OBJECTION_HANDLING
+  PLAYBOOK_GENERATION
+  MARKET_INSIGHT
+}

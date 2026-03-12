@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
+import { resolveOrg } from "@/lib/auth";
 import { PropertyCard } from "@/components/properties/property-card";
 import { UploadDialog } from "@/components/properties/upload-dialog";
 import { Building2 } from "lucide-react";
 
 export default async function PropertiesPage() {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return null;
 
   const properties = await db.property.findMany({

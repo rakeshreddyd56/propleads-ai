@@ -3,10 +3,10 @@ import { RecentLeads } from "@/components/dashboard/recent-leads";
 import { SourceChart } from "@/components/dashboard/source-chart";
 import { LeadFunnel } from "@/components/dashboard/lead-funnel";
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
+import { resolveOrg } from "@/lib/auth";
 
 export default async function DashboardPage() {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return <div className="p-6 text-center text-zinc-400">Please create or select an organization to get started.</div>;
 
   const now = new Date();

@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
+import { resolveOrg } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { LeadDetail } from "@/components/leads/lead-detail";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return null;
 
   const { id } = await params;

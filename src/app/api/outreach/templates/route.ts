@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { resolveOrg } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -13,7 +13,7 @@ const templateSchema = z.object({
 });
 
 export async function GET() {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const templates = await db.messageTemplate.findMany({
@@ -24,7 +24,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Zap, Globe, Brain, MessageSquare, BarChart3, Shield, ArrowRight } from "lucide-react";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 const features = [
   { icon: Globe, title: "AI Lead Scraping", desc: "Automatically find property seekers on Reddit, Facebook, forums, and real estate portals across Hyderabad" },
@@ -18,7 +20,9 @@ const steps = [
   { num: "4", title: "Match & Reach Out", desc: "Get matched properties and AI-crafted outreach messages" },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth();
+  if (userId) redirect("/dashboard");
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       {/* Hero */}

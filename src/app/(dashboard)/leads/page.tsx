@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
+import { resolveOrg } from "@/lib/auth";
 import { LeadTable } from "@/components/leads/lead-table";
 import { Flame, Sun, Snowflake } from "lucide-react";
 
 export default async function LeadsPage() {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return null;
 
   const [leads, counts] = await Promise.all([

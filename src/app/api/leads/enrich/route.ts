@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { resolveOrg } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { enrichPerson } from "@/lib/enrichment/apollo";
 
 export async function POST(req: NextRequest) {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { leadId } = await req.json();

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
+import { resolveOrg } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ function formatPrice(paise: bigint | null): string {
 }
 
 export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { orgId } = await auth();
+  const orgId = await resolveOrg();
   if (!orgId) return null;
 
   const { id } = await params;

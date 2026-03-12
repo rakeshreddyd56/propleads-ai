@@ -9,15 +9,16 @@ const createSchema = z.object({
   reraNumber: z.string().optional(),
   location: z.string(),
   area: z.string(),
-  propertyType: z.enum(["APARTMENT", "VILLA", "PLOT", "COMMERCIAL", "PENTHOUSE", "INDEPENDENT_HOUSE"]),
-  unitTypes: z.array(z.object({ type: z.string(), sizeSqft: z.number(), priceINR: z.number() })),
+  propertyType: z.enum(["APARTMENT", "VILLA", "PLOT", "COMMERCIAL", "PENTHOUSE", "INDEPENDENT_HOUSE"]).default("APARTMENT"),
+  unitTypes: z.array(z.object({ type: z.string(), sizeSqft: z.number(), priceINR: z.number() })).default([]),
   amenities: z.array(z.string()).default([]),
   usps: z.array(z.string()).default([]),
-  priceMin: z.number().optional(),
-  priceMax: z.number().optional(),
-  possessionDate: z.string().optional(),
+  priceMin: z.number().nullable().optional(),
+  priceMax: z.number().nullable().optional(),
+  possessionDate: z.string().nullable().optional(),
   brochureUrl: z.string().optional(),
   extractedData: z.any().optional(),
+  description: z.string().optional(),
 });
 
 export async function GET() {
@@ -30,7 +31,11 @@ export async function GET() {
     include: { _count: { select: { matches: true } } },
   });
 
-  return NextResponse.json(properties);
+  return NextResponse.json(properties.map((p) => ({
+    ...p,
+    priceMin: p.priceMin ? Number(p.priceMin) : null,
+    priceMax: p.priceMax ? Number(p.priceMax) : null,
+  })));
 }
 
 export async function POST(req: NextRequest) {
@@ -40,15 +45,22 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const data = createSchema.parse(body);
 
+  const { priceMin, priceMax, possessionDate, description, ...rest } = data;
+
   const property = await db.property.create({
     data: {
       orgId,
-      ...data,
-      priceMin: data.priceMin ? BigInt(data.priceMin) : null,
-      priceMax: data.priceMax ? BigInt(data.priceMax) : null,
-      possessionDate: data.possessionDate ? new Date(data.possessionDate) : null,
+      ...rest,
+      priceMin: priceMin ? BigInt(priceMin) : null,
+      priceMax: priceMax ? BigInt(priceMax) : null,
+      possessionDate: possessionDate ? new Date(possessionDate) : null,
     },
   });
 
-  return NextResponse.json(property, { status: 201 });
+  // BigInt can't be serialized to JSON — convert to number
+  return NextResponse.json({
+    ...property,
+    priceMin: property.priceMin ? Number(property.priceMin) : null,
+    priceMax: property.priceMax ? Number(property.priceMax) : null,
+  }, { status: 201 });
 }

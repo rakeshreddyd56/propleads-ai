@@ -5,8 +5,8 @@ import { z } from "zod";
 
 const createSchema = z.object({
   name: z.string().min(1),
-  builderName: z.string().optional(),
-  reraNumber: z.string().optional(),
+  builderName: z.string().nullable().optional(),
+  reraNumber: z.string().nullable().optional(),
   location: z.string(),
   area: z.string(),
   propertyType: z.enum(["APARTMENT", "VILLA", "PLOT", "COMMERCIAL", "PENTHOUSE", "INDEPENDENT_HOUSE"]).default("APARTMENT"),
@@ -16,9 +16,9 @@ const createSchema = z.object({
   priceMin: z.number().nullable().optional(),
   priceMax: z.number().nullable().optional(),
   possessionDate: z.string().nullable().optional(),
-  brochureUrl: z.string().optional(),
+  brochureUrl: z.string().nullable().optional(),
   extractedData: z.any().optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
 });
 
 export async function GET() {
@@ -42,25 +42,37 @@ export async function POST(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const data = createSchema.parse(body);
+  try {
+    const body = await req.json();
+    const data = createSchema.parse(body);
 
-  const { priceMin, priceMax, possessionDate, description, ...rest } = data;
+    const property = await db.property.create({
+      data: {
+        orgId,
+        name: data.name,
+        builderName: data.builderName ?? null,
+        reraNumber: data.reraNumber ?? null,
+        location: data.location,
+        area: data.area,
+        propertyType: data.propertyType,
+        unitTypes: data.unitTypes,
+        amenities: data.amenities,
+        usps: data.usps,
+        priceMin: data.priceMin ? BigInt(data.priceMin) : null,
+        priceMax: data.priceMax ? BigInt(data.priceMax) : null,
+        possessionDate: data.possessionDate ? new Date(data.possessionDate) : null,
+        brochureUrl: data.brochureUrl ?? null,
+        extractedData: data.extractedData ?? null,
+      },
+    });
 
-  const property = await db.property.create({
-    data: {
-      orgId,
-      ...rest,
-      priceMin: priceMin ? BigInt(priceMin) : null,
-      priceMax: priceMax ? BigInt(priceMax) : null,
-      possessionDate: possessionDate ? new Date(possessionDate) : null,
-    },
-  });
-
-  // BigInt can't be serialized to JSON — convert to number
-  return NextResponse.json({
-    ...property,
-    priceMin: property.priceMin ? Number(property.priceMin) : null,
-    priceMax: property.priceMax ? Number(property.priceMax) : null,
-  }, { status: 201 });
+    return NextResponse.json({
+      ...property,
+      priceMin: property.priceMin ? Number(property.priceMin) : null,
+      priceMax: property.priceMax ? Number(property.priceMax) : null,
+    }, { status: 201 });
+  } catch (error: any) {
+    console.error("Property creation error:", error);
+    return NextResponse.json({ error: error.message ?? "Failed to create property" }, { status: 500 });
+  }
 }

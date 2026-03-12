@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Loader2, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { upload } from "@vercel/blob/client";
 
 export function UploadDialog() {
   const router = useRouter();
@@ -25,13 +26,22 @@ export function UploadDialog() {
     if (!file) return;
     setExtracting(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/properties/upload", { method: "POST", body: fd });
+      // 1. Upload file directly to Vercel Blob from client (bypasses 4.5MB serverless limit)
+      const blob = await upload(`brochures/${Date.now()}-${file.name}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/blob/upload",
+      });
+
+      // 2. Send blob URL to API for AI extraction (no large payload)
+      const res = await fetch("/api/properties/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blobUrl: blob.url, fileName: file.name, fileType: file.type }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setExtracted(data.extracted);
-      setBlobUrl(data.blobUrl);
+      setBlobUrl(blob.url);
       toast.success("Brochure analyzed by AI!");
     } catch (e: any) {
       toast.error(e.message || "Failed to analyze brochure");

@@ -1,4 +1,4 @@
-import { claudeJSON } from "@/lib/claude";
+import { claudeJSON, claudeJSONFast } from "@/lib/claude";
 
 export interface DetectedIntent {
   isPropertySeeker: boolean;
@@ -60,6 +60,36 @@ Return JSON:
   "persona": "IT_PROFESSIONAL"|"NRI"|"FIRST_TIME_BUYER"|"INVESTOR"|"LUXURY_BUYER"|"FAMILY_UPGRADER"|null,
   "intentSignals": { "vastu": bool, "nri": bool, "wfh": bool, "investment": bool, "familyNeeds": bool, "relocation": bool },
   "extractedName": "name if visible or null"
+}
+`);
+}
+
+/** Fast version using Haiku — for bulk scraping within timeout */
+export async function detectIntentFast(text: string, platform: string): Promise<DetectedIntent> {
+  const platformHint = platformPrompts[platform] ?? `This is from the ${platform} platform.`;
+
+  return claudeJSONFast<DetectedIntent>(`
+Analyze this post for real estate BUYING intent in Hyderabad, India.
+
+${platformHint}
+
+Post: "${text.slice(0, 2000)}"
+
+Areas: Gachibowli, Kondapur, Madhapur, HITEC City, Kokapet, Narsingi, Financial District, Tellapur, Kollur, Shamshabad, Kompally, Miyapur, Kukatpally, Manikonda, Bachupally, Jubilee Hills, Banjara Hills, Uppal, LB Nagar, Secunderabad.
+
+Budget: 1L = 100,000 INR, 1Cr = 10,000,000 INR
+
+Return JSON:
+{
+  "isPropertySeeker": true/false,
+  "confidence": 0.0-1.0,
+  "budget": { "min": number|null, "max": number|null, "raw": "text or null" },
+  "preferredAreas": ["area1"],
+  "propertyType": "2BHK"|"3BHK"|"villa"|null,
+  "timeline": "text or null",
+  "persona": "IT_PROFESSIONAL"|"NRI"|"FIRST_TIME_BUYER"|"INVESTOR"|"LUXURY_BUYER"|"FAMILY_UPGRADER"|null,
+  "intentSignals": { "vastu": false, "nri": false, "wfh": false, "investment": false, "familyNeeds": false, "relocation": false },
+  "extractedName": "name or null"
 }
 `);
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveOrg } from "@/lib/auth";
 import { runScraping } from "@/lib/scraping/engine";
 
-// Vercel Hobby: 60s max. Pro plan: 300s. Enterprise: 900s.
+// Vercel Hobby: 60s max
 export const maxDuration = 60;
 
 export async function POST() {

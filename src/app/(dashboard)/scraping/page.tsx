@@ -64,29 +64,61 @@ export default function ScrapingPage() {
 
   async function triggerScrape() {
     setTriggering(true);
-    try {
-      const res = await fetch("/api/scraping/trigger", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? "Scraping failed");
-        return;
-      }
-      const failed = data.results?.filter((r: any) => r.error) ?? [];
-      const succeeded = data.results?.filter((r: any) => !r.error) ?? [];
-      if (failed.length > 0 && succeeded.length === 0) {
-        toast.error(`All ${failed.length} sources failed: ${failed[0].error}`);
-      } else if (failed.length > 0) {
-        toast.warning(`${succeeded.length} sources OK, ${failed.length} failed — ${data.totalLeads} leads found`);
-      } else {
-        toast.success(`Scraped ${data.sourcesProcessed} sources — ${data.totalLeads} leads found`);
-      }
-      const sourcesRes = await fetch("/api/scraping/sources");
-      if (sourcesRes.ok) setSources(await sourcesRes.json());
-    } catch {
-      toast.error("Failed to trigger");
-    } finally {
+    const activeSources = sources.filter((s) => s.isActive);
+    if (activeSources.length === 0) {
+      toast.error("No active sources to scrape");
       setTriggering(false);
+      return;
     }
+
+    let totalLeads = 0;
+    let succeeded = 0;
+    let failed = 0;
+
+    // Process each source one by one — each gets its own 60s API call
+    for (const source of activeSources) {
+      const config = platformConfig[source.platform];
+      toast.info(`Scraping ${config?.icon ?? ""} ${source.displayName}...`);
+
+      try {
+        const res = await fetch("/api/scraping/run-source", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceId: source.id }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          failed++;
+          // Don't spam toast for expected Apify errors
+          if (!data.error.includes("APIFY_API_TOKEN")) {
+            toast.error(`${source.displayName}: ${data.error}`);
+          }
+        } else {
+          totalLeads += data.leadsFound ?? 0;
+          succeeded++;
+          if (data.leadsFound > 0) {
+            toast.success(`${config?.icon ?? ""} ${source.displayName}: ${data.leadsFound} leads found`);
+          }
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    // Final summary
+    if (totalLeads > 0) {
+      toast.success(`Done! ${totalLeads} leads from ${succeeded} sources`);
+    } else if (succeeded > 0) {
+      toast.info(`Scraped ${succeeded} sources — no new leads found`);
+    } else {
+      toast.error("All sources failed");
+    }
+
+    // Refresh sources list
+    const sourcesRes = await fetch("/api/scraping/sources");
+    if (sourcesRes.ok) setSources(await sourcesRes.json());
+    setTriggering(false);
   }
 
   async function toggleSource(id: string, isActive: boolean) {

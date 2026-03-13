@@ -1,36 +1,51 @@
-const APIFY_API = "https://api.apify.com/v2";
+import { ApifyClient } from "apify-client";
 
-export async function runApifyActor(actorId: string, input: Record<string, any>): Promise<any[]> {
-  const res = await fetch(`${APIFY_API}/acts/${actorId}/runs?token=${process.env.APIFY_API_TOKEN}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  const run = await res.json();
-  const runId = run.data?.id;
-  if (!runId) throw new Error("Failed to start Apify actor");
+let _client: ApifyClient | null = null;
 
-  // Wait for completion (poll every 5s, max 5 min)
-  for (let i = 0; i < 60; i++) {
-    await new Promise((r) => setTimeout(r, 5000));
-    const statusRes = await fetch(`${APIFY_API}/actor-runs/${runId}?token=${process.env.APIFY_API_TOKEN}`);
-    const statusData = await statusRes.json();
-    if (statusData.data?.status === "SUCCEEDED") {
-      const datasetId = statusData.data.defaultDatasetId;
-      const itemsRes = await fetch(`${APIFY_API}/datasets/${datasetId}/items?token=${process.env.APIFY_API_TOKEN}`);
-      return itemsRes.json();
+function getClient(): ApifyClient {
+  if (!_client) {
+    if (!process.env.APIFY_API_TOKEN) {
+      throw new Error("APIFY_API_TOKEN not configured");
     }
-    if (statusData.data?.status === "FAILED" || statusData.data?.status === "ABORTED") {
-      throw new Error(`Apify actor ${actorId} ${statusData.data.status}`);
-    }
+    _client = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
   }
-  throw new Error("Apify actor timed out");
+  return _client;
 }
 
+export async function runApifyActor(
+  actorId: string,
+  input: Record<string, any>,
+  timeoutSecs = 300
+): Promise<any[]> {
+  const client = getClient();
+
+  const run = await client.actor(actorId).call(input, {
+    timeout: timeoutSecs,
+    memory: 256,
+  });
+
+  if (!run.defaultDatasetId) {
+    throw new Error(`Apify actor ${actorId} produced no dataset`);
+  }
+
+  const { items } = await client
+    .dataset(run.defaultDatasetId)
+    .listItems({ limit: 100 });
+
+  return items;
+}
+
+// Updated actor IDs based on latest Apify marketplace (2026)
 export const APIFY_ACTORS = {
-  NINETY_NINE_ACRES: "natasha.lekh/99acres-scraper",
-  MAGICBRICKS: "natasha.lekh/magicbricks-scraper",
-  NOBROKER: "curious_coder/nobroker-scraper",
+  NINETY_NINE_ACRES: "easyapi/99acres-com-scraper",
+  MAGICBRICKS: "ecomscrape/magicbricks-property-search-scraper",
+  NOBROKER: "ecomscrape/nobroker-property-search-scraper",
   FACEBOOK_GROUPS: "apify/facebook-groups-scraper",
   GOOGLE_MAPS: "compass/crawler-google-places",
-};
+  INSTAGRAM: "apify/instagram-scraper",
+  TWITTER: "apidojo/tweet-scraper",
+  YOUTUBE_COMMENTS: "streamers/youtube-comments-scraper",
+  LINKEDIN: "dev_fusion/linkedin-profile-scraper",
+  QUORA: "jupri/quora-scraper",
+  TELEGRAM: "tri_angle/telegram-scraper",
+} as const;

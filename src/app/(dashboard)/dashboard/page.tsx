@@ -2,6 +2,7 @@ import { KPICards } from "@/components/dashboard/kpi-cards";
 import { RecentLeads } from "@/components/dashboard/recent-leads";
 import { SourceChart } from "@/components/dashboard/source-chart";
 import { LeadFunnel } from "@/components/dashboard/lead-funnel";
+import { QuickTour } from "@/components/onboarding/quick-tour";
 import { db } from "@/lib/db";
 import { resolveOrg } from "@/lib/auth";
 
@@ -38,6 +39,8 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm text-zinc-500">Your real estate lead intelligence at a glance</p>
       </div>
+
+      <QuickTour />
 
       <KPICards kpis={{
         totalLeads,

@@ -17,20 +17,30 @@ async function main() {
 
   console.log(`Organization: ${org.name} (${org.id})`);
 
-  // Seed scraping sources
+  // Seed scraping sources — all supported platforms
   const sources = [
+    // Reddit — free, no API key needed (public .json endpoints)
     { platform: "REDDIT" as const, identifier: "hyderabad", displayName: "r/hyderabad", keywords: ["flat", "apartment", "property", "2BHK", "3BHK", "buy house", "real estate", "gated community"] },
     { platform: "REDDIT" as const, identifier: "IndianRealEstate", displayName: "r/IndianRealEstate", keywords: ["hyderabad", "gachibowli", "kokapet", "kondapur", "HITEC City", "financial district"] },
     { platform: "REDDIT" as const, identifier: "IndiaInvestments", displayName: "r/IndiaInvestments", keywords: ["hyderabad property", "real estate investment", "apartment hyderabad"] },
     { platform: "REDDIT" as const, identifier: "NRI", displayName: "r/NRI", keywords: ["property hyderabad", "invest hyderabad", "NRI flat", "home india"] },
     { platform: "REDDIT" as const, identifier: "india", displayName: "r/india", keywords: ["hyderabad flat", "buy apartment hyderabad", "property advice hyderabad"] },
-    { platform: "FACEBOOK" as const, identifier: "hyderabadnrirealestateinvestors", displayName: "Hyderabad NRI RE Investors", keywords: ["property", "flat", "investment", "NRI"] },
-    { platform: "FACEBOOK" as const, identifier: "847608352671871", displayName: "KONDAPUR RE GROUP", keywords: ["flat", "apartment", "2BHK", "3BHK", "rent", "buy"] },
-    { platform: "NINETY_NINE_ACRES" as const, identifier: "Hyderabad-Real-Estate", displayName: "99acres Hyderabad", keywords: ["hyderabad", "gachibowli", "kokapet", "kondapur"] },
-    { platform: "MAGICBRICKS" as const, identifier: "hyderabad", displayName: "MagicBricks Hyderabad", keywords: ["apartment", "villa", "plot"] },
-    { platform: "NOBROKER" as const, identifier: "forum", displayName: "NoBroker Forum", keywords: ["hyderabad", "property", "flat"] },
-    { platform: "COMMONFLOOR" as const, identifier: "c5-hyderabad", displayName: "CommonFloor Hyderabad", keywords: ["hyderabad", "apartment"] },
-    { platform: "GOOGLE_MAPS" as const, identifier: "real+estate+agents+hyderabad", displayName: "Google Maps RE Agents", keywords: ["real estate", "builder", "property dealer"] },
+    // Facebook Groups — needs Apify
+    { platform: "FACEBOOK" as const, identifier: "hyderabadnrirealestateinvestors", displayName: "FB: Hyderabad NRI RE Investors", keywords: ["property", "flat", "investment", "NRI", "hyderabad"] },
+    { platform: "FACEBOOK" as const, identifier: "847608352671871", displayName: "FB: Kondapur RE Group", keywords: ["flat", "apartment", "2BHK", "3BHK", "rent", "buy", "kondapur"] },
+    // Indian Real Estate Portals — needs Apify
+    { platform: "NINETY_NINE_ACRES" as const, identifier: "Hyderabad", displayName: "99acres Hyderabad", keywords: ["hyderabad", "gachibowli", "kokapet", "kondapur", "apartment", "villa"] },
+    { platform: "MAGICBRICKS" as const, identifier: "Hyderabad", displayName: "MagicBricks Hyderabad", keywords: ["apartment", "villa", "plot", "gachibowli", "kokapet"] },
+    { platform: "NOBROKER" as const, identifier: "Hyderabad", displayName: "NoBroker Hyderabad", keywords: ["hyderabad", "property", "flat", "apartment", "owner"] },
+    { platform: "COMMONFLOOR" as const, identifier: "c5-hyderabad", displayName: "CommonFloor Hyderabad", keywords: ["hyderabad", "apartment", "society"] },
+    // Discovery & Reviews — needs Apify
+    { platform: "GOOGLE_MAPS" as const, identifier: "real estate agents", displayName: "Google Maps RE Agents", keywords: ["real estate", "builder", "property dealer", "hyderabad"] },
+    { platform: "YOUTUBE" as const, identifier: "hyderabad property review", displayName: "YT: Property Reviews", keywords: ["hyderabad", "apartment review", "flat tour", "gachibowli", "kokapet"] },
+    { platform: "QUORA" as const, identifier: "buy flat hyderabad", displayName: "Quora: Buy Flat Hyderabad", keywords: ["hyderabad", "buy flat", "best area", "property investment"] },
+    // Social Media — needs Apify
+    { platform: "INSTAGRAM" as const, identifier: "hyderabadrealestate", displayName: "IG: #hyderabadrealestate", keywords: ["flat", "apartment", "property", "hyderabad"] },
+    { platform: "TWITTER" as const, identifier: "hyderabad property", displayName: "X: Hyderabad Property", keywords: ["hyderabad flat", "buy apartment", "property investment", "real estate hyderabad"] },
+    { platform: "LINKEDIN" as const, identifier: "hyderabad real estate", displayName: "LinkedIn: Hyderabad RE", keywords: ["hyderabad real estate", "property investment", "IT professional", "relocation"] },
   ];
 
   for (const source of sources) {

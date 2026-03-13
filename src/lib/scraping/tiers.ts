@@ -67,3 +67,7 @@ export function getRequiredTier(platform: string): string {
     return "Starter";
   return "Growth";
 }
+
+export function canCreateLead(tier: PlanTier, leadsThisMonth: number): boolean {
+  return leadsThisMonth < TIER_LEADS_PER_MONTH[tier];
+}

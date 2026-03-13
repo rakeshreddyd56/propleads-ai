@@ -43,12 +43,19 @@ export default function PlanSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier, billingCycle }),
       });
+      const result = await res.json();
       if (res.ok) {
-        toast.success(`Switched to ${tier} plan`);
+        // If Razorpay returns a checkout URL, redirect to payment page
+        if (result.checkoutUrl) {
+          toast.info("Redirecting to payment...");
+          window.open(result.checkoutUrl, "_blank");
+        } else {
+          toast.success(`Switched to ${tier} plan`);
+        }
         const d = await fetch("/api/plans").then((r) => r.json());
         setData(d);
       } else {
-        toast.error("Failed to upgrade");
+        toast.error(result.error ?? "Failed to upgrade");
       }
     } finally { setSaving(false); }
   }

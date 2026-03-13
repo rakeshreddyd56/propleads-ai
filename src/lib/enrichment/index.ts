@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { isApolloConfigured, searchPerson, enrichFromLinkedIn, enrichFromEmail, type ApolloContact } from "./apollo";
 import { isHunterConfigured, findEmail, verifyEmail } from "./hunter";
 import { enrichLinkedInProfiles } from "@/lib/scraping/platforms/linkedin";
+import { clusterLead } from "@/lib/clustering";
 
 export interface EnrichmentResult {
   email: string | null;
@@ -121,6 +122,11 @@ export async function enrichLead(leadId: string): Promise<EnrichmentResult> {
       enrichmentSource: result.source,
     },
   });
+
+  // Auto-cluster after enrichment (non-blocking)
+  clusterLead(leadId).catch((e) =>
+    console.warn(`Auto-clustering failed for lead ${leadId}:`, e)
+  );
 
   return result;
 }

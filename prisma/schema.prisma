@@ -18,6 +18,16 @@ model Organization {
   runsResetAt      DateTime?
   slackWebhookUrl  String?
   notifyEmail      String?
+
+  // Razorpay billing
+  razorpayCustomerId      String?
+  razorpaySubscriptionId  String?
+  planExpiresAt           DateTime?
+
+  // Usage tracking
+  leadsThisMonth  Int      @default(0)
+  leadsResetAt    DateTime?
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -29,6 +39,7 @@ model Organization {
   teamMembers      TeamMember[]
   runGroups        RunGroup[]
   postHashes       PostHash[]
+  leadClusters     LeadCluster[]
 }
 
 model TeamMember {
@@ -148,8 +159,11 @@ model Lead {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  clusterId       String?
+
   org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   assignedTo      TeamMember?  @relation(fields: [assignedToId], references: [id])
+  cluster         LeadCluster? @relation(fields: [clusterId], references: [id])
   matches         LeadPropertyMatch[]
   outreachEvents  OutreachEvent[]
   coachSessions   CoachSession[]
@@ -158,6 +172,7 @@ model Lead {
   @@index([orgId, tier, status])
   @@index([orgId, score])
   @@index([orgId, createdAt])
+  @@index([clusterId])
 }
 
 enum Platform {
@@ -438,4 +453,25 @@ model PostHash {
 
   @@unique([orgId, hash])
   @@index([orgId, platform])
+}
+
+// Cross-platform lead clustering — links the same person across platforms
+model LeadCluster {
+  id              String   @id @default(cuid())
+  orgId           String
+  primaryName     String?
+  primaryEmail    String?
+  primaryPhone    String?
+  platformCount   Int      @default(1)
+  bestScore       Int      @default(0)
+  bestTier        LeadTier @default(COLD)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  leads           Lead[]
+
+  @@index([orgId, bestTier])
+  @@index([orgId, primaryEmail])
+  @@index([orgId, primaryPhone])
 }

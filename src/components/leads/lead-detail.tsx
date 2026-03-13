@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoreBadge } from "./score-badge";
-import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle } from "lucide-react";
+import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle, Link2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function LeadDetail({ lead }: { lead: any }) {
   const [scoring, setScoring] = useState(false);
   const [matching, setMatching] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [clustering, setClustering] = useState(false);
 
   async function rescore() {
     setScoring(true);
@@ -85,8 +86,52 @@ export function LeadDetail({ lead }: { lead: any }) {
         <Button size="sm" variant="outline" onClick={enrichContact} disabled={enriching}>
           {enriching ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />} Enrich Contact
         </Button>
+        <Button size="sm" variant="outline" onClick={async () => {
+          setClustering(true);
+          try {
+            const res = await fetch("/api/leads/cluster", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ leadId: lead.id }),
+            });
+            const data = await res.json();
+            if (res.ok && data.clustered) {
+              toast.success(`Linked with ${data.cluster?.leads?.length ?? 0} leads across platforms`);
+            } else if (res.ok) {
+              toast.info("No cross-platform match found");
+            } else {
+              toast.error(data.error ?? "Clustering failed");
+            }
+          } catch { toast.error("Clustering failed"); }
+          finally { setClustering(false); }
+        }} disabled={clustering}>
+          {clustering ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Link2 className="mr-1 h-3 w-3" />} Find Duplicates
+        </Button>
         <Button size="sm"><MessageSquare className="mr-1 h-3 w-3" /> AI Coach</Button>
       </div>
+
+      {/* Cross-platform cluster info */}
+      {lead.cluster && lead.cluster.leads?.length > 1 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Link2 className="h-4 w-4 text-indigo-500" />
+              <p className="text-sm font-medium">Also seen on</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {lead.cluster.leads
+                .filter((l: any) => l.id !== lead.id)
+                .map((l: any) => (
+                  <a key={l.id} href={`/leads/${l.id}`} className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs hover:bg-zinc-50 transition-colors">
+                    <Badge variant="outline" className="text-[10px]">{l.platform}</Badge>
+                    <span>{l.name ?? "Unknown"}</span>
+                    <span className="text-zinc-400">Score: {l.score}</span>
+                  </a>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="intent">
         <TabsList>

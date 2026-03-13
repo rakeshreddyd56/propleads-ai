@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { getPropertyContext, enrichKeywords } from "./property-context";
 import { filterNewPosts } from "./dedup";
 import { markSourceCompleted, markSourceErrored } from "./run-group";
-import { isPlatformAllowed, hasFeature, getRequiredTier, type PlanTier } from "./tiers";
+import { isPlatformAllowed, hasFeature, getRequiredTier, canCreateLead, TIER_LEADS_PER_MONTH, type PlanTier } from "./tiers";
 import { notifyIfHotLead } from "@/lib/notifications/hot-lead";
 import { enrichLead } from "@/lib/enrichment";
 import {
@@ -61,6 +61,25 @@ export async function runSingleSource(
       leadsUpdated: 0,
       skippedDup: 0,
       error: `${source.platform} requires ${getRequiredTier(source.platform)} plan`,
+    };
+  }
+
+  // Check monthly lead limit
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const leadsThisMonth = await db.lead.count({
+    where: { orgId, createdAt: { gte: monthStart } },
+  });
+  if (!canCreateLead(tier, leadsThisMonth)) {
+    return {
+      sourceId: source.id,
+      platform: source.platform,
+      postsScanned: 0,
+      leadsFound: 0,
+      leadsUpdated: 0,
+      skippedDup: 0,
+      error: `Monthly lead limit reached (${TIER_LEADS_PER_MONTH[tier]})`,
     };
   }
 

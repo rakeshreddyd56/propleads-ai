@@ -15,6 +15,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       outreachEvents: { orderBy: { createdAt: "desc" }, take: 20 },
       coachSessions: { orderBy: { createdAt: "desc" }, take: 5 },
       assignedTo: true,
+      cluster: {
+        include: {
+          leads: {
+            select: { id: true, name: true, platform: true, score: true, tier: true },
+            orderBy: { score: "desc" },
+          },
+        },
+      },
     },
   });
 

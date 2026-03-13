@@ -15,6 +15,8 @@ export async function GET() {
     select: {
       planTier: true, planBillingCycle: true, runsToday: true,
       slackWebhookUrl: true, notifyEmail: true,
+      razorpaySubscriptionId: true, planExpiresAt: true,
+      leadsThisMonth: true,
     },
   });
 
@@ -43,6 +45,8 @@ export async function GET() {
       leadsThisMonth,
       slackWebhookUrl: org?.slackWebhookUrl ?? null,
       notifyEmail: org?.notifyEmail ?? null,
+      hasSubscription: !!org?.razorpaySubscriptionId,
+      planExpiresAt: org?.planExpiresAt?.toISOString() ?? null,
     },
     plans,
   });

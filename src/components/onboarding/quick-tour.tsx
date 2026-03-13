@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  X, ChevronRight, ChevronLeft, Play, RotateCcw,
+  X, ChevronRight, ChevronLeft, Play,
   LayoutDashboard, Building2, Users, Globe, Send,
   MessageSquare, BarChart3, MapPin, Settings,
-  Upload, Brain, Sparkles, Target, Search, Bell,
-  Zap, Flame, Sun, Snowflake, Phone, Mail, Link2,
-  GraduationCap, RefreshCw, Plus, Shield, Crown,
-  Rocket, Gauge, Activity, BookOpen,
+  Sparkles, Target,
+  GraduationCap, BookOpen,
 } from "lucide-react";
 
 // ─── Tour Section & Step Definitions ─────────────────────────────────────────
@@ -21,7 +19,7 @@ interface TourStep {
   title: string;
   description: string;
   tip?: string;
-  selector?: string; // CSS selector to highlight
+  selector?: string;
 }
 
 interface TourSection {
@@ -30,12 +28,11 @@ interface TourSection {
   icon: any;
   color: string;
   bgColor: string;
-  page: string; // route to navigate to
+  page: string;
   steps: TourStep[];
 }
 
 const tourSections: TourSection[] = [
-  // ── 1. DASHBOARD ──
   {
     id: "dashboard",
     title: "Dashboard",
@@ -96,8 +93,6 @@ const tourSections: TourSection[] = [
       },
     ],
   },
-
-  // ── 2. PROPERTIES ──
   {
     id: "properties",
     title: "Properties",
@@ -133,8 +128,6 @@ const tourSections: TourSection[] = [
       },
     ],
   },
-
-  // ── 3. LEAD SOURCES ──
   {
     id: "scraping",
     title: "Lead Sources",
@@ -159,12 +152,12 @@ const tourSections: TourSection[] = [
       {
         id: "platforms-explained",
         title: "Platform Tiers",
-        description: "Platforms are gated by your plan tier:\n• FREE: Reddit only (great for starting out)\n• STARTER: + 99acres, MagicBricks, NoBroker, Facebook, CommonFloor\n• GROWTH: + Instagram, Twitter, YouTube, LinkedIn, Quora, Telegram, Google Maps\n• PRO: All platforms + contact enrichment + daily digest",
+        description: "Platforms are gated by your plan tier:\n\u2022 FREE: Reddit only (great for starting out)\n\u2022 STARTER: + 99acres, MagicBricks, NoBroker, Facebook, CommonFloor\n\u2022 GROWTH: + Instagram, Twitter, YouTube, LinkedIn, Quora, Telegram, Google Maps\n\u2022 PRO: All platforms + contact enrichment + daily digest",
       },
       {
         id: "run-all",
         title: "Run All Sources",
-        description: "The green 'Run All Sources' button triggers scraping across ALL your active sources at once. It creates a 'Run Group' that tracks progress. Each platform is scraped independently — if one fails, others still complete.",
+        description: "The 'Run All Sources' button triggers scraping across ALL your active sources at once. It creates a 'Run Group' that tracks progress. Each platform is scraped independently — if one fails, others still complete.",
         selector: "[data-tour='run-all']",
         tip: "Sources also run automatically via daily cron (6 AM UTC). But you can trigger manual runs anytime.",
       },
@@ -183,13 +176,11 @@ const tourSections: TourSection[] = [
       {
         id: "run-history",
         title: "Run History",
-        description: "Below each source, you can see recent run history: date, posts scanned, leads found, and status (COMPLETED/FAILED). Expand a Run Group to see results from all sources in that batch run.",
+        description: "Below the sources, you can see recent run history: date, posts scanned, leads found, and status (COMPLETED/FAILED). Expand a Run Group to see results from all sources in that batch run.",
         selector: "[data-tour='run-history']",
       },
     ],
   },
-
-  // ── 4. LEADS ──
   {
     id: "leads",
     title: "Leads",
@@ -207,7 +198,7 @@ const tourSections: TourSection[] = [
       {
         id: "tier-filters",
         title: "Tier Quick Filters",
-        description: "Four filter buttons at the top let you instantly see:\n• HOT (score 70+): High-intent buyers ready to purchase — act fast\n• WARM (score 40-69): Interested but still exploring — nurture these\n• COLD (score <40): Low intent or vague queries — monitor\n• UNSCORED: New leads awaiting AI scoring",
+        description: "Filter buttons at the top let you instantly filter by tier:\n\u2022 HOT (score 70+): High-intent buyers ready to purchase — act fast\n\u2022 WARM (score 40-69): Interested but still exploring — nurture these\n\u2022 COLD (score <40): Low intent or vague queries — monitor",
         selector: "[data-tour='tier-filters']",
         tip: "Focus your daily effort on HOT leads first. These are people who expressed clear buying intent with specific budget and area preferences.",
       },
@@ -226,23 +217,16 @@ const tourSections: TourSection[] = [
       {
         id: "lead-detail-actions",
         title: "Lead Detail — Action Buttons",
-        description: "On a lead's detail page, you have 7 action buttons:\n• Re-score: Recalculate the AI score\n• Match Properties: Find matching properties\n• WhatsApp: Send message (if phone exists)\n• Email: Send email (if email exists)\n• Enrich Contact: Find email/phone/company via Apollo/Hunter\n• Find Duplicates: Link this person across platforms\n• AI Coach: Get coaching for talking to this lead",
-      },
-      {
-        id: "lead-tabs",
-        title: "Lead Detail — Tabs",
-        description: "Four tabs show different data:\n• Intent: Original post, budget, timeline, areas, buyer persona, score breakdown\n• Matches: Properties matched by AI with score % and reasoning\n• Outreach: Communication history (WhatsApp, email, calls)\n• Enriched Data: Contact info found via enrichment (email, phone, company, job title)",
+        description: "On a lead's detail page, you have action buttons for: Re-score (recalculate AI score), Match Properties (find matching properties), WhatsApp/Email outreach, Enrich Contact (find email/phone via Apollo/Hunter), Find Duplicates (link across platforms), and AI Coach (get coaching for this lead).",
       },
       {
         id: "lead-clustering",
         title: "Cross-Platform Clustering",
-        description: "When the same person posts on multiple platforms (e.g., Reddit AND Facebook), the 'Find Duplicates' button links them together. You'll see an 'Also seen on' section showing all linked profiles. This prevents duplicate outreach and gives you a fuller picture of the lead.",
+        description: "When the same person posts on multiple platforms (e.g., Reddit AND Facebook), the 'Find Duplicates' button links them together. You'll see an 'Also seen on' section showing all linked profiles. This prevents duplicate outreach.",
         tip: "Clustering works best after enrichment — when email/phone matches are available, linking accuracy is highest.",
       },
     ],
   },
-
-  // ── 5. OUTREACH ──
   {
     id: "outreach",
     title: "Outreach",
@@ -254,7 +238,7 @@ const tourSections: TourSection[] = [
       {
         id: "outreach-overview",
         title: "Outreach Center",
-        description: "Create and manage message templates for contacting leads. Templates support variables (like {{name}}, {{property}}, {{area}}) that get filled in automatically. You can create templates for WhatsApp, Email, and SMS — each tailored to different buyer personas and conversation stages.",
+        description: "Create and manage message templates for contacting leads. Templates support variables (like {{name}}, {{property}}, {{area}}) that get filled in automatically. You can create templates for WhatsApp, Email, and SMS.",
         selector: "[data-tour='outreach-header']",
       },
       {
@@ -267,17 +251,10 @@ const tourSections: TourSection[] = [
       {
         id: "template-categories",
         title: "Template Categories",
-        description: "Six categories match your sales workflow:\n• FIRST_CONTACT: Initial outreach to new leads\n• BROCHURE_SHARE: Send property details\n• SITE_VISIT: Invite to visit the property\n• FOLLOW_UP: Re-engage after silence\n• PRICE_UPDATE: Share pricing changes\n• NRI_SPECIFIC: Tailored for overseas buyers (investment focus, rental yields)",
-      },
-      {
-        id: "compliance",
-        title: "Compliance & Opt-in",
-        description: "All outreach respects DPDP Act 2023 and TRAI DND regulations. Leads must have explicit opt-in before receiving WhatsApp messages or emails. The system tracks opt-in status per channel and blocks non-compliant sends.",
+        description: "Six categories match your sales workflow:\n\u2022 FIRST_CONTACT: Initial outreach to new leads\n\u2022 BROCHURE_SHARE: Send property details\n\u2022 SITE_VISIT: Invite to visit the property\n\u2022 FOLLOW_UP: Re-engage after silence\n\u2022 PRICE_UPDATE: Share pricing changes\n\u2022 NRI_SPECIFIC: Tailored for overseas buyers",
       },
     ],
   },
-
-  // ── 6. AI COACH ──
   {
     id: "coach",
     title: "AI Coach",
@@ -294,21 +271,19 @@ const tourSections: TourSection[] = [
       {
         id: "conversation-analysis",
         title: "Analyze Conversations",
-        description: "Paste any WhatsApp or email conversation with a lead into the analyzer. The AI will assess: sentiment (positive/negative/neutral), buying signals detected, objections identified, and recommended next steps. It also suggests how to handle specific objections.",
+        description: "Paste any WhatsApp or email conversation with a lead into the 'Analyze Conversation' tab. The AI will assess: sentiment, buying signals detected, objections identified, and recommended next steps.",
         selector: "[data-tour='coach-analyze']",
-        tip: "Use this after every significant conversation to catch opportunities you might have missed and prepare your next response.",
+        tip: "Use this after every significant conversation to catch opportunities you might have missed.",
       },
       {
         id: "message-generator",
         title: "Message Generator",
-        description: "Generate personalized messages by selecting: buyer persona (IT Professional, NRI, First-time Buyer, etc.), property name, channel (WhatsApp/Email/SMS), and conversation stage (First Contact through Closing). The AI crafts culturally-appropriate, persona-specific messages.",
+        description: "The 'Quick Message' tab generates personalized messages by selecting: buyer persona, property name, channel (WhatsApp/Email/SMS), and conversation stage. The AI crafts culturally-appropriate, persona-specific messages.",
         selector: "[data-tour='coach-generate']",
-        tip: "The generator adapts language style per persona — tech-savvy tone for IT professionals, investment-focused for NRIs, hand-holding for first-time buyers.",
+        tip: "The generator adapts language style per persona — tech-savvy tone for IT professionals, investment-focused for NRIs.",
       },
     ],
   },
-
-  // ── 7. ANALYTICS ──
   {
     id: "analytics",
     title: "Analytics",
@@ -320,37 +295,35 @@ const tourSections: TourSection[] = [
       {
         id: "analytics-overview",
         title: "Performance Analytics",
-        description: "Track everything about your lead generation: which platforms work best, how your funnel converts, enrichment success rates, and usage against your plan limits. All data updates in real-time as you scrape and process leads.",
+        description: "Track everything about your lead generation: which platforms work best, how your funnel converts, enrichment success rates, and usage against your plan limits.",
       },
       {
         id: "usage-meters",
         title: "Usage Meters",
-        description: "Two progress bars show your current usage:\n• Runs Today: How many scraping runs you've used today vs your plan limit\n• Leads This Month: Total new leads this month vs your monthly cap\nWhen either limit is reached, scraping pauses until the next reset.",
+        description: "Two progress bars show your current usage:\n\u2022 Runs Today: How many scraping runs you've used today vs your plan limit\n\u2022 Leads This Month: Total new leads this month vs your monthly cap\nWhen either limit is reached, scraping pauses until the next reset.",
         selector: "[data-tour='usage-meters']",
         tip: "FREE: 2 runs/day, 50 leads/month. STARTER: 5/200. GROWTH: 10/500. PRO: Unlimited.",
       },
       {
         id: "platform-health",
         title: "Platform Health",
-        description: "Three critical metrics:\n• Scraping Success Rate: % of scraping runs that complete without errors (should be 80%+)\n• Enrichment Rate: % of leads with enriched contact info (email/phone)\n• Cross-platform Clusters: Number of leads linked across platforms",
+        description: "Three critical metrics: Scraping Success Rate (% of runs without errors), Enrichment Rate (% of leads with contact info), and Cross-platform Clusters (leads linked across platforms).",
         selector: "[data-tour='platform-health']",
       },
       {
         id: "tier-breakdown",
         title: "Lead Quality Distribution",
-        description: "Shows the proportion of HOT, WARM, and COLD leads in your pipeline. A healthy distribution has 10-20% HOT leads. If most leads are COLD, review your source configuration and keywords — they may be too broad.",
+        description: "Shows the proportion of HOT, WARM, and COLD leads. A healthy distribution has 10-20% HOT leads. If most leads are COLD, review your source keywords — they may be too broad.",
         selector: "[data-tour='tier-breakdown']",
       },
       {
         id: "source-performance",
         title: "Source Performance",
-        description: "Platform-by-platform breakdown showing lead count and average score. Helps identify your best-performing sources. If a platform has high volume but low avg score, its leads are low-quality — consider refining keywords or switching to a more targeted approach.",
+        description: "Platform-by-platform breakdown showing lead count and average score. Helps identify your best-performing sources. If a platform has high volume but low avg score, consider refining keywords.",
         selector: "[data-tour='source-performance']",
       },
     ],
   },
-
-  // ── 8. MARKET INTEL ──
   {
     id: "market",
     title: "Market Intel",
@@ -367,20 +340,18 @@ const tourSections: TourSection[] = [
       {
         id: "micro-markets",
         title: "Micro-Market Cards",
-        description: "Each area card shows: price range per sqft (₹X–₹Y), growth percentage, a 'hotness' score, and the dominant buyer persona. Areas are tagged as 'Hot' (score 85+), 'Warm' (70+), or 'Emerging'. Use this to understand where buyer demand is strongest.",
+        description: "Each area card shows: price range per sqft, growth percentage, a 'hotness' score, and the dominant buyer persona. Areas are tagged as 'Hot' (score 85+), 'Warm' (70+), or 'Emerging'.",
         selector: "[data-tour='micro-markets']",
         tip: "Match your property listings to 'Hot' micro-markets for the best lead-to-property match rates.",
       },
       {
         id: "buyer-personas",
         title: "Buyer Personas",
-        description: "Six buyer segments with their typical budgets and preferred areas:\n• IT Professional: ₹50L-1.5Cr, tech corridors\n• NRI: ₹1Cr+, premium areas\n• First-time Buyer: ₹30-60L, affordable zones\n• Investor: Multiple properties, rental yield focus\n• Luxury Buyer: ₹2Cr+, Jubilee Hills/Banjara Hills\n• Family Upgrader: ₹80L-1.5Cr, established areas",
+        description: "Six buyer segments with typical budgets and preferred areas:\n\u2022 IT Professional: 50L-1.5Cr, tech corridors\n\u2022 NRI: 1Cr+, premium areas\n\u2022 First-time Buyer: 30-60L, affordable zones\n\u2022 Investor: Multiple properties, rental yield focus\n\u2022 Luxury Buyer: 2Cr+, Jubilee Hills/Banjara Hills\n\u2022 Family Upgrader: 80L-1.5Cr, established areas",
         selector: "[data-tour='personas']",
       },
     ],
   },
-
-  // ── 9. PLANS & SETTINGS ──
   {
     id: "settings",
     title: "Plans & Settings",
@@ -392,35 +363,53 @@ const tourSections: TourSection[] = [
       {
         id: "plans-overview",
         title: "Subscription Plans",
-        description: "Four tiers with different capabilities:\n• FREE (₹0): Reddit only, 2 runs/day, 50 leads/month — great for testing\n• STARTER (₹375/mo): Property portals + Facebook, 5 runs/day, 200 leads\n• GROWTH (₹1,750/mo): All social media, auto-scoring, notifications, 500 leads\n• PRO (₹3,000/mo): Everything + enrichment, daily digest, unlimited leads",
+        description: "Four tiers with different capabilities:\n\u2022 FREE: Reddit only, 2 runs/day, 50 leads/month\n\u2022 STARTER (375/mo): Property portals + Facebook, 5 runs/day, 200 leads\n\u2022 GROWTH (1,750/mo): All social media, auto-scoring, notifications, 500 leads\n\u2022 PRO (3,000/mo): Everything + enrichment, daily digest, unlimited leads",
       },
       {
         id: "billing-toggle",
         title: "Monthly vs Annual",
-        description: "Toggle between monthly and annual billing. Annual plans save 20% — for example, GROWTH drops from ₹1,750/mo to ₹1,400/mo when billed annually. Click 'Upgrade' on any plan card to switch tiers.",
+        description: "Toggle between monthly and annual billing. Annual plans save 20%. Click 'Upgrade' on any plan card to switch tiers.",
         selector: "[data-tour='billing-toggle']",
         tip: "Payments are handled via Razorpay. You can use UPI, cards, net banking, or wallets.",
       },
       {
         id: "notifications-config",
         title: "Hot Lead Notifications",
-        description: "Configure where to receive alerts when a HOT lead is discovered:\n• Slack Webhook URL: Paste your Slack webhook to get notifications in a channel\n• Email: Enter an email address for instant email alerts\nRequires GROWTH plan or above.",
+        description: "Configure where to receive alerts when a HOT lead is discovered: Slack Webhook URL and/or email address. Requires GROWTH plan or above.",
         selector: "[data-tour='notifications-config']",
         tip: "Set up Slack notifications for your sales team channel — instant alerts mean faster response times on hot leads.",
-      },
-      {
-        id: "api-settings",
-        title: "API Keys & Settings",
-        description: "The main Settings page shows configured API keys (managed via environment variables on Vercel), compliance status (DPDP Act, TRAI DND, RERA verification), and team management via Clerk. All API keys are set server-side for security.",
       },
     ],
   },
 ];
 
+// ─── CSS injected once via <style> tag ───────────────────────────────────────
+
+const TOUR_CSS = `
+.tour-highlight {
+  position: relative;
+  z-index: 5;
+  outline: 3px solid #6366f1 !important;
+  outline-offset: 4px;
+  border-radius: 8px;
+  animation: tour-pulse 2s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  0%, 100% { outline-color: #6366f1; }
+  50% { outline-color: #a5b4fc; }
+}
+`;
+
 // ─── Tour Component ──────────────────────────────────────────────────────────
 
 const TOUR_KEY = "propleads-tour-dismissed";
 const TOUR_PROGRESS_KEY = "propleads-tour-progress";
+
+function clearAllHighlights() {
+  try {
+    document.querySelectorAll(".tour-highlight").forEach((el) => el.classList.remove("tour-highlight"));
+  } catch {}
+}
 
 export function QuickTour() {
   const router = useRouter();
@@ -430,52 +419,108 @@ export function QuickTour() {
   const [stepIdx, setStepIdx] = useState(0);
   const [expanded, setExpanded] = useState(true);
   const [navigating, setNavigating] = useState(false);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cssInjectedRef = useRef(false);
+
+  // Inject CSS once
+  useEffect(() => {
+    if (cssInjectedRef.current) return;
+    cssInjectedRef.current = true;
+    const style = document.createElement("style");
+    style.setAttribute("data-tour-css", "");
+    style.textContent = TOUR_CSS;
+    document.head.appendChild(style);
+  }, []);
 
   // Load state from localStorage
   useEffect(() => {
-    const isDismissed = localStorage.getItem(TOUR_KEY);
-    if (!isDismissed) setDismissed(false);
+    try {
+      const isDismissed = localStorage.getItem(TOUR_KEY);
+      if (!isDismissed) setDismissed(false);
 
-    const saved = localStorage.getItem(TOUR_PROGRESS_KEY);
-    if (saved) {
-      try {
+      const saved = localStorage.getItem(TOUR_PROGRESS_KEY);
+      if (saved) {
         const { s, t } = JSON.parse(saved);
-        if (s < tourSections.length && t < tourSections[s].steps.length) {
+        if (
+          typeof s === "number" && typeof t === "number" &&
+          s >= 0 && s < tourSections.length &&
+          t >= 0 && t < tourSections[s].steps.length
+        ) {
           setSectionIdx(s);
           setStepIdx(t);
         }
-      } catch {}
-    }
+      }
+    } catch {}
   }, []);
 
   // Save progress
   useEffect(() => {
     if (!dismissed) {
-      localStorage.setItem(TOUR_PROGRESS_KEY, JSON.stringify({ s: sectionIdx, t: stepIdx }));
+      try {
+        localStorage.setItem(TOUR_PROGRESS_KEY, JSON.stringify({ s: sectionIdx, t: stepIdx }));
+      } catch {}
     }
   }, [sectionIdx, stepIdx, dismissed]);
 
-  // Highlight target element when step changes
+  // Highlight target element with retry for page transitions
   useEffect(() => {
-    if (dismissed || !expanded) return;
+    if (dismissed || !expanded) {
+      clearAllHighlights();
+      return;
+    }
 
+    // Bounds check
+    if (sectionIdx >= tourSections.length) return;
     const section = tourSections[sectionIdx];
+    if (stepIdx >= section.steps.length) return;
     const step = section.steps[stepIdx];
+
+    // Clear previous highlights
+    clearAllHighlights();
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = null;
+    }
+
     if (!step.selector) return;
 
-    const el = document.querySelector(step.selector);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("tour-highlight");
-      return () => { el.classList.remove("tour-highlight"); };
+    // Try to find and highlight element, with retries for page transitions
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    function tryHighlight() {
+      attempts++;
+      try {
+        const el = document.querySelector(step.selector!);
+        if (el) {
+          el.classList.add("tour-highlight");
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+      } catch {}
+
+      if (attempts < maxAttempts) {
+        highlightTimerRef.current = setTimeout(tryHighlight, 300);
+      }
     }
+
+    // Small delay to let new page render
+    highlightTimerRef.current = setTimeout(tryHighlight, 150);
+
+    return () => {
+      clearAllHighlights();
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+    };
   }, [sectionIdx, stepIdx, dismissed, expanded, pathname]);
 
-  const section = tourSections[sectionIdx];
-  const step = section.steps[stepIdx];
+  // Bounds-safe accessors
+  const section = tourSections[sectionIdx] ?? tourSections[0];
+  const step = section.steps[stepIdx] ?? section.steps[0];
   const Icon = section.icon;
 
-  // Total step counting
   const totalSteps = tourSections.reduce((sum, s) => sum + s.steps.length, 0);
   const currentGlobalStep = tourSections.slice(0, sectionIdx).reduce((sum, s) => sum + s.steps.length, 0) + stepIdx + 1;
 
@@ -483,7 +528,8 @@ export function QuickTour() {
     if (pathname !== page) {
       setNavigating(true);
       router.push(page);
-      setTimeout(() => setNavigating(false), 500);
+      // Wait for navigation to complete
+      setTimeout(() => setNavigating(false), 800);
     }
   }, [pathname, router]);
 
@@ -510,22 +556,26 @@ export function QuickTour() {
   }
 
   function jumpToSection(idx: number) {
+    if (idx < 0 || idx >= tourSections.length) return;
     setSectionIdx(idx);
     setStepIdx(0);
     navigateToPage(tourSections[idx].page);
   }
 
   function dismiss() {
-    localStorage.setItem(TOUR_KEY, "true");
-    localStorage.removeItem(TOUR_PROGRESS_KEY);
+    try {
+      localStorage.setItem(TOUR_KEY, "true");
+      localStorage.removeItem(TOUR_PROGRESS_KEY);
+    } catch {}
     setDismissed(true);
-    // Remove any lingering highlights
-    document.querySelectorAll(".tour-highlight").forEach((el) => el.classList.remove("tour-highlight"));
+    clearAllHighlights();
   }
 
   function resetTour() {
-    localStorage.removeItem(TOUR_KEY);
-    localStorage.removeItem(TOUR_PROGRESS_KEY);
+    try {
+      localStorage.removeItem(TOUR_KEY);
+      localStorage.removeItem(TOUR_PROGRESS_KEY);
+    } catch {}
     setDismissed(false);
     setSectionIdx(0);
     setStepIdx(0);
@@ -535,7 +585,7 @@ export function QuickTour() {
   const isLast = sectionIdx === tourSections.length - 1 && stepIdx === section.steps.length - 1;
   const isFirst = sectionIdx === 0 && stepIdx === 0;
 
-  // ── Collapsed / Dismissed State ──
+  // Dismissed — show restart button
   if (dismissed) {
     return (
       <button
@@ -548,7 +598,7 @@ export function QuickTour() {
     );
   }
 
-  // ── Minimized State ──
+  // Minimized
   if (!expanded) {
     return (
       <button
@@ -561,162 +611,144 @@ export function QuickTour() {
     );
   }
 
-  // ── Full Tour Panel ──
+  // Full tour panel
   return (
-    <>
-      {/* CSS for highlight animation */}
-      <style jsx global>{`
-        .tour-highlight {
-          position: relative;
-          z-index: 5;
-          outline: 3px solid #6366f1 !important;
-          outline-offset: 4px;
-          border-radius: 8px;
-          animation: tour-pulse 2s ease-in-out infinite;
-        }
-        @keyframes tour-pulse {
-          0%, 100% { outline-color: #6366f1; }
-          50% { outline-color: #a5b4fc; }
-        }
-      `}</style>
-
-      <div className="fixed bottom-4 right-4 z-50 w-[420px] max-h-[85vh] flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
-          <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg ${section.bgColor}`}>
-              <Icon className={`h-4 w-4 ${section.color}`} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{section.title}</p>
-              <p className="text-[10px] text-zinc-400">Step {currentGlobalStep} of {totalSteps}</p>
-            </div>
+    <div className="fixed bottom-4 right-4 z-50 w-[420px] max-h-[85vh] flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+        <div className="flex items-center gap-2">
+          <div className={`p-1.5 rounded-lg ${section.bgColor}`}>
+            <Icon className={`h-4 w-4 ${section.color}`} />
           </div>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setExpanded(false)} className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors" title="Minimize">
-              <ChevronRight className="h-4 w-4 text-zinc-400 rotate-90" />
+          <div>
+            <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{section.title}</p>
+            <p className="text-[10px] text-zinc-400">Step {currentGlobalStep} of {totalSteps}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setExpanded(false)} className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors" title="Minimize">
+            <ChevronRight className="h-4 w-4 text-zinc-400 rotate-90" />
+          </button>
+          <button onClick={dismiss} className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors" title="Close tour">
+            <X className="h-4 w-4 text-zinc-400" />
+          </button>
+        </div>
+      </div>
+
+      {/* Section Navigator */}
+      <div className="flex gap-1 px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto no-scrollbar">
+        {tourSections.map((s, i) => {
+          const SIcon = s.icon;
+          const isActive = i === sectionIdx;
+          const isCompleted = i < sectionIdx;
+          return (
+            <button
+              key={s.id}
+              onClick={() => jumpToSection(i)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-all ${
+                isActive
+                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : isCompleted
+                    ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                    : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              }`}
+              title={s.title}
+            >
+              <SIcon className="h-3 w-3" />
+              {isActive && <span>{s.title}</span>}
             </button>
-            <button onClick={dismiss} className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors" title="Close tour">
-              <X className="h-4 w-4 text-zinc-400" />
-            </button>
+          );
+        })}
+      </div>
+
+      {/* Step Content */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{step.title}</h3>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{step.description}</p>
+
+        {step.tip && (
+          <div className="flex gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+            <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span className="leading-relaxed">{step.tip}</span>
           </div>
+        )}
+
+        {/* Step dots within section */}
+        <div className="flex items-center gap-1 pt-1">
+          {section.steps.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setStepIdx(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === stepIdx ? "w-5 bg-zinc-900 dark:bg-zinc-100" : i < stepIdx ? "w-1.5 bg-green-400" : "w-1.5 bg-zinc-200 dark:bg-zinc-700"
+              }`}
+            />
+          ))}
         </div>
+      </div>
 
-        {/* Section Navigator */}
-        <div className="flex gap-1 px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto no-scrollbar">
-          {tourSections.map((s, i) => {
-            const SIcon = s.icon;
-            const isActive = i === sectionIdx;
-            const isCompleted = i < sectionIdx;
-            return (
-              <button
-                key={s.id}
-                onClick={() => jumpToSection(i)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-all ${
-                  isActive
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    : isCompleted
-                      ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-                      : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                }`}
-                title={s.title}
-              >
-                <SIcon className="h-3 w-3" />
-                {isActive && <span>{s.title}</span>}
-              </button>
-            );
-          })}
-        </div>
+      {/* Global progress bar */}
+      <div className="h-1 bg-zinc-100 dark:bg-zinc-800">
+        <div
+          className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+          style={{ width: `${(currentGlobalStep / totalSteps) * 100}%` }}
+        />
+      </div>
 
-        {/* Step Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-          <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{step.title}</h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{step.description}</p>
+      {/* Footer Navigation */}
+      <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 dark:border-zinc-800">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={goBack}
+          disabled={isFirst || navigating}
+          className="text-xs"
+        >
+          <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Back
+        </Button>
 
-          {step.tip && (
-            <div className="flex gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
-              <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <span className="leading-relaxed">{step.tip}</span>
-            </div>
-          )}
+        {step.selector && pathname === section.page ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => {
+              try {
+                const el = document.querySelector(step.selector!);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+              } catch {}
+            }}
+          >
+            <Target className="h-3 w-3 mr-1" /> Show
+          </Button>
+        ) : pathname !== section.page ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => navigateToPage(section.page)}
+            disabled={navigating}
+          >
+            Go to {section.title}
+          </Button>
+        ) : null}
 
-          {/* Step dots within section */}
-          <div className="flex items-center gap-1 pt-1">
-            {section.steps.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setStepIdx(i)}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === stepIdx ? "w-5 bg-zinc-900 dark:bg-zinc-100" : i < stepIdx ? "w-1.5 bg-green-400" : "w-1.5 bg-zinc-200 dark:bg-zinc-700"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Global progress bar */}
-        <div className="h-1 bg-zinc-100 dark:bg-zinc-800">
-          <div
-            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
-            style={{ width: `${(currentGlobalStep / totalSteps) * 100}%` }}
-          />
-        </div>
-
-        {/* Footer Navigation */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 dark:border-zinc-800">
+        {isLast ? (
+          <Button size="sm" onClick={dismiss} className="text-xs">
+            Finish Tour
+          </Button>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
-            onClick={goBack}
-            disabled={isFirst || navigating}
+            onClick={goNext}
+            disabled={navigating}
             className="text-xs"
           >
-            <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Back
+            Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
           </Button>
-
-          {step.selector && pathname === section.page && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => {
-                const el = document.querySelector(step.selector!);
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-              }}
-            >
-              <Target className="h-3 w-3 mr-1" /> Show
-            </Button>
-          )}
-
-          {pathname !== section.page && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => navigateToPage(section.page)}
-              disabled={navigating}
-            >
-              Go to {section.title}
-            </Button>
-          )}
-
-          {isLast ? (
-            <Button size="sm" onClick={dismiss} className="text-xs">
-              Finish Tour
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={goNext}
-              disabled={navigating}
-              className="text-xs"
-            >
-              Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
-            </Button>
-          )}
-        </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

@@ -12,13 +12,13 @@ export default function CoachPage() {
 
       <Tabs defaultValue="analyze">
         <TabsList>
-          <TabsTrigger value="analyze">Analyze Conversation</TabsTrigger>
-          <TabsTrigger value="generate">Quick Message</TabsTrigger>
+          <TabsTrigger value="analyze" data-tour="coach-analyze">Analyze Conversation</TabsTrigger>
+          <TabsTrigger value="generate" data-tour="coach-generate">Quick Message</TabsTrigger>
         </TabsList>
-        <TabsContent value="analyze" data-tour="coach-analyze">
+        <TabsContent value="analyze">
           <ChatInterface />
         </TabsContent>
-        <TabsContent value="generate" data-tour="coach-generate">
+        <TabsContent value="generate">
           <MessageGenerator />
         </TabsContent>
       </Tabs>

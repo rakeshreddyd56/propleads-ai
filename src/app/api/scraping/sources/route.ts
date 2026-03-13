@@ -11,15 +11,36 @@ const sourceSchema = z.object({
   schedule: z.string().default("0 */6 * * *"),
 });
 
+const defaultSources = [
+  { platform: "REDDIT" as const, identifier: "hyderabad", displayName: "r/hyderabad", keywords: ["flat", "apartment", "property", "2BHK", "3BHK", "buy house", "real estate", "gated community"] },
+  { platform: "REDDIT" as const, identifier: "IndianRealEstate", displayName: "r/IndianRealEstate", keywords: ["hyderabad", "gachibowli", "kokapet", "kondapur", "HITEC City", "financial district"] },
+  { platform: "REDDIT" as const, identifier: "IndiaInvestments", displayName: "r/IndiaInvestments", keywords: ["hyderabad property", "real estate investment", "apartment hyderabad"] },
+  { platform: "REDDIT" as const, identifier: "NRI", displayName: "r/NRI", keywords: ["property hyderabad", "invest hyderabad", "NRI flat", "home india"] },
+  { platform: "REDDIT" as const, identifier: "india", displayName: "r/india", keywords: ["hyderabad flat", "buy apartment hyderabad", "property advice hyderabad"] },
+];
+
 export async function GET() {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const sources = await db.scrapingSource.findMany({
+  let sources = await db.scrapingSource.findMany({
     where: { orgId },
     include: { runs: { take: 5, orderBy: { startedAt: "desc" } } },
     orderBy: { createdAt: "desc" },
   });
+
+  // Auto-seed default Reddit sources for new orgs
+  if (sources.length === 0) {
+    for (const s of defaultSources) {
+      await db.scrapingSource.create({ data: { orgId, ...s } });
+    }
+    sources = await db.scrapingSource.findMany({
+      where: { orgId },
+      include: { runs: { take: 5, orderBy: { startedAt: "desc" } } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   return NextResponse.json(sources);
 }
 

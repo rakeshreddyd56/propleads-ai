@@ -35,8 +35,21 @@ export default function ScrapingPage() {
   async function triggerScrape() {
     setTriggering(true);
     try {
-      await fetch("/api/scraping/trigger", { method: "POST" });
-      toast.success("Scraping triggered!");
+      const res = await fetch("/api/scraping/trigger", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Scraping failed");
+        return;
+      }
+      const failed = data.results?.filter((r: any) => r.error) ?? [];
+      if (failed.length > 0) {
+        toast.error(`${failed.length} source(s) failed: ${failed[0].error}`);
+      } else {
+        toast.success(`Scraped ${data.sourcesProcessed} sources — ${data.totalLeads} leads found`);
+      }
+      // Refresh sources to show updated run history
+      const sourcesRes = await fetch("/api/scraping/sources");
+      if (sourcesRes.ok) setSources(await sourcesRes.json());
     } catch { toast.error("Failed to trigger"); }
     finally { setTriggering(false); }
   }

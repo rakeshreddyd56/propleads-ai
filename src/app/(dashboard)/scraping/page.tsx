@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Globe, Play, Plus, Loader2, Trash2 } from "lucide-react";
+import { Globe, Play, Plus, Loader2, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 const platformConfig: Record<string, { label: string; icon: string; requiresApify: boolean; description: string }> = {
@@ -34,6 +34,7 @@ export default function ScrapingPage() {
   const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
+  const [scoring, setScoring] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newSource, setNewSource] = useState({ platform: "", identifier: "", displayName: "", keywords: "" });
 
@@ -43,6 +44,23 @@ export default function ScrapingPage() {
       .then(setSources)
       .finally(() => setLoading(false));
   }, []);
+
+  async function scoreLeads() {
+    setScoring(true);
+    try {
+      const res = await fetch("/api/leads/score-all", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Scoring failed");
+        return;
+      }
+      toast.success(`Scored ${data.scored} leads, matched ${data.matched}${data.remaining > 0 ? ` (${data.remaining} remaining)` : ""}`);
+    } catch {
+      toast.error("Failed to score leads");
+    } finally {
+      setScoring(false);
+    }
+  }
 
   async function triggerScrape() {
     setTriggering(true);
@@ -139,6 +157,10 @@ export default function ScrapingPage() {
           <Button variant="outline" onClick={triggerScrape} disabled={triggering}>
             {triggering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
             {triggering ? "Scraping..." : "Run All Now"}
+          </Button>
+          <Button variant="outline" onClick={scoreLeads} disabled={scoring}>
+            {scoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+            {scoring ? "Scoring..." : "Score & Match Leads"}
           </Button>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger render={<Button />}>

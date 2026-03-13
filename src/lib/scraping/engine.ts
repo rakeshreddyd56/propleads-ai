@@ -4,6 +4,10 @@ import { matchLeadToProperties } from "@/lib/ai/property-matcher";
 import { scoreLead } from "@/lib/ai/lead-scorer";
 import { db } from "@/lib/db";
 import { getPropertyContext, enrichKeywords } from "./property-context";
+import { filterNewPosts } from "./dedup";
+import { markSourceCompleted, markSourceErrored } from "./run-group";
+import { isPlatformAllowed, hasFeature, getRequiredTier, type PlanTier } from "./tiers";
+import { notifyIfHotLead } from "@/lib/notifications/hot-lead";
 import {
   scrapeFacebookGroup,
   scrape99Acres,
@@ -29,165 +33,74 @@ interface ScrapedPost {
   profileUrl?: string;
 }
 
-type SourceResult = {
-  sourceId: string;
-  platform: string;
-  postsScanned: number;
-  leadsFound: number;
-  error?: string;
-};
-
-// Max posts to process per source (keeps total AI calls low)
-const MAX_POSTS_PER_SOURCE = 5;
-// Global timeout — stop well before Vercel's 60s limit
-const GLOBAL_TIMEOUT_MS = 40000;
-// Per-source timeout
-const SOURCE_TIMEOUT_MS = 15000;
-
-/**
- * Main scraping entry point.
- * Phase 1: Scrape + intent detection + save leads (fits in 60s timeout)
- * Scoring/matching happens separately via scoreAllLeads()
- */
-export async function runScraping(orgId: string) {
-  const sources = await db.scrapingSource.findMany({
-    where: { orgId, isActive: true },
-  });
-
-  const propertyContext = await getPropertyContext(orgId);
-  const results: SourceResult[] = [];
-  const startGlobal = Date.now();
-
-  for (const source of sources) {
-    // Stop if approaching global timeout
-    if (Date.now() - startGlobal > GLOBAL_TIMEOUT_MS) {
-      results.push({
-        sourceId: source.id,
-        platform: source.platform,
-        postsScanned: 0,
-        leadsFound: 0,
-        error: "Skipped: timeout approaching",
-      });
-      continue;
-    }
-
-    const sourceStart = Date.now();
-    let leadsFound = 0;
-    let postsScanned = 0;
-
-    const run = await db.scrapingRun.create({
-      data: { sourceId: source.id, status: "RUNNING" },
-    });
-
-    try {
-      const enrichedKeywords = enrichKeywords(source.keywords, propertyContext);
-
-      // Wrap fetchPosts in a per-source timeout
-      const posts = await Promise.race([
-        fetchPosts(source.platform, source.identifier, enrichedKeywords),
-        delay(SOURCE_TIMEOUT_MS).then(() => [] as ScrapedPost[]),
-      ]);
-
-      // Limit posts to keep AI calls manageable
-      const limitedPosts = posts.slice(0, MAX_POSTS_PER_SOURCE);
-      postsScanned = posts.length;
-
-      for (const post of limitedPosts) {
-        // Check both global and per-source timeout
-        if (Date.now() - startGlobal > GLOBAL_TIMEOUT_MS) break;
-        if (Date.now() - sourceStart > SOURCE_TIMEOUT_MS) break;
-
-        try {
-          const intent = await detectIntentFast(post.text, source.platform);
-          if (!intent.isPropertySeeker || intent.confidence < 0.5) continue;
-
-          await upsertLead(source.orgId, source.platform, post, intent);
-          leadsFound++;
-        } catch (e) {
-          console.error(`Error processing post from ${source.platform}:`, e);
-        }
-      }
-
-      await db.scrapingRun.update({
-        where: { id: run.id },
-        data: {
-          status: "COMPLETED",
-          postsScanned,
-          leadsFound,
-          completedAt: new Date(),
-          durationMs: Date.now() - sourceStart,
-        },
-      });
-
-      await db.scrapingSource.update({
-        where: { id: source.id },
-        data: { lastRunAt: new Date(), lastRunLeads: leadsFound },
-      });
-
-      results.push({ sourceId: source.id, platform: source.platform, postsScanned, leadsFound });
-
-      // Brief rate limit between Reddit sources only
-      if (source.platform === "REDDIT") await delay(1000);
-    } catch (error: any) {
-      await db.scrapingRun.update({
-        where: { id: run.id },
-        data: {
-          status: "FAILED",
-          errors: { message: error.message },
-          completedAt: new Date(),
-          durationMs: Date.now() - sourceStart,
-        },
-      });
-
-      results.push({
-        sourceId: source.id,
-        platform: source.platform,
-        postsScanned: 0,
-        leadsFound: 0,
-        error: error.message,
-      });
-    }
-  }
-
-  return {
-    sourcesProcessed: sources.length,
-    totalLeads: results.reduce((sum, r) => sum + r.leadsFound, 0),
-    results,
-  };
-}
-
 /**
  * Run a single source — called by /api/scraping/run-source.
  * Each source gets its own full 60s API call.
+ * Now tier-aware with dedup, smart merge, auto-score, and notifications.
  */
-export async function runSingleSource(orgId: string, sourceId: string) {
+export async function runSingleSource(
+  orgId: string,
+  sourceId: string,
+  options?: { runGroupId?: string; tier?: PlanTier }
+) {
   const source = await db.scrapingSource.findFirst({
     where: { id: sourceId, orgId },
   });
   if (!source) throw new Error("Source not found");
+
+  const tier = options?.tier ?? "FREE";
+
+  // Check tier allows this platform
+  if (!isPlatformAllowed(tier, source.platform)) {
+    return {
+      sourceId: source.id,
+      platform: source.platform,
+      postsScanned: 0,
+      leadsFound: 0,
+      leadsUpdated: 0,
+      skippedDup: 0,
+      error: `${source.platform} requires ${getRequiredTier(source.platform)} plan`,
+    };
+  }
 
   const propertyContext = await getPropertyContext(orgId);
   const enrichedKeywords = enrichKeywords(source.keywords, propertyContext);
   const startTime = Date.now();
 
   const run = await db.scrapingRun.create({
-    data: { sourceId: source.id, status: "RUNNING" },
+    data: {
+      sourceId: source.id,
+      status: "RUNNING",
+      runGroupId: options?.runGroupId ?? null,
+    },
   });
 
   try {
     const posts = await fetchPosts(source.platform, source.identifier, enrichedKeywords);
-    const limitedPosts = posts.slice(0, 8); // More posts per source since each gets full 60s
+
+    // Dedup: filter out already-seen posts
+    const { newPosts, skippedCount } = await filterNewPosts(orgId, source.platform, posts);
+    const limitedPosts = newPosts.slice(0, 8);
     let leadsFound = 0;
+    let leadsUpdated = 0;
 
     for (const post of limitedPosts) {
-      if (Date.now() - startTime > 50000) break; // 50s guard
+      if (Date.now() - startTime > 50000) break;
 
       try {
         const intent = await detectIntentFast(post.text, source.platform);
         if (!intent.isPropertySeeker || intent.confidence < 0.5) continue;
 
-        await upsertLead(source.orgId, source.platform, post, intent);
-        leadsFound++;
+        const result = await upsertLeadSmart(
+          source.orgId, source.platform, post, intent, source.displayName
+        );
+        if (result.created) leadsFound++;
+        else leadsUpdated++;
+
+        // Auto-score + notify for Growth+ tiers
+        if (hasFeature(tier, "auto_score") && result.lead) {
+          await autoScoreAndNotify(orgId, result.lead.id, tier);
+        }
       } catch (e) {
         console.error(`Error processing post from ${source.platform}:`, e);
       }
@@ -199,6 +112,8 @@ export async function runSingleSource(orgId: string, sourceId: string) {
         status: "COMPLETED",
         postsScanned: posts.length,
         leadsFound,
+        leadsUpdated,
+        postsSkippedDup: skippedCount,
         completedAt: new Date(),
         durationMs: Date.now() - startTime,
       },
@@ -209,7 +124,18 @@ export async function runSingleSource(orgId: string, sourceId: string) {
       data: { lastRunAt: new Date(), lastRunLeads: leadsFound },
     });
 
-    return { sourceId: source.id, platform: source.platform, postsScanned: posts.length, leadsFound };
+    if (options?.runGroupId) {
+      await markSourceCompleted(options.runGroupId, leadsFound, leadsUpdated);
+    }
+
+    return {
+      sourceId: source.id,
+      platform: source.platform,
+      postsScanned: posts.length,
+      leadsFound,
+      leadsUpdated,
+      skippedDup: skippedCount,
+    };
   } catch (error: any) {
     await db.scrapingRun.update({
       where: { id: run.id },
@@ -221,7 +147,19 @@ export async function runSingleSource(orgId: string, sourceId: string) {
       },
     });
 
-    return { sourceId: source.id, platform: source.platform, postsScanned: 0, leadsFound: 0, error: error.message };
+    if (options?.runGroupId) {
+      await markSourceErrored(options.runGroupId);
+    }
+
+    return {
+      sourceId: source.id,
+      platform: source.platform,
+      postsScanned: 0,
+      leadsFound: 0,
+      leadsUpdated: 0,
+      skippedDup: 0,
+      error: error.message,
+    };
   }
 }
 
@@ -235,7 +173,7 @@ export async function scoreAllLeads(orgId: string) {
   const [unscoredLeads, properties] = await Promise.all([
     db.lead.findMany({
       where: { orgId, score: 0 },
-      take: 5, // Only 5 at a time — each needs 2 AI calls
+      take: 5,
       orderBy: { createdAt: "desc" },
     }),
     db.property.findMany({ where: { orgId, status: "ACTIVE" } }),
@@ -246,11 +184,9 @@ export async function scoreAllLeads(orgId: string) {
   let matched = 0;
 
   for (const lead of unscoredLeads) {
-    // Stay within 50s
     if (Date.now() - startTime > 50000) break;
 
     try {
-      // Score
       const scoreResult = await scoreLead({
         originalText: lead.originalText,
         budget: lead.budget,
@@ -270,7 +206,6 @@ export async function scoreAllLeads(orgId: string) {
       });
       scored++;
 
-      // Match
       if (properties.length > 0) {
         const matches = await matchLeadToProperties(lead, properties);
         for (const match of matches) {
@@ -297,6 +232,126 @@ export async function scoreAllLeads(orgId: string) {
   return { scored, matched, remaining: totalUnscored };
 }
 
+// ---- Smart Lead Upsert ----
+
+async function upsertLeadSmart(
+  orgId: string,
+  platform: string,
+  post: ScrapedPost,
+  intent: DetectedIntent,
+  sourceName: string
+) {
+  const platformUserId = post.authorId || post.author;
+
+  const existing = await db.lead.findUnique({
+    where: { orgId_platform_platformUserId: { orgId, platform: platform as any, platformUserId } },
+  });
+
+  if (existing) {
+    // Smart merge: keep best data from both
+    const mergedAreas = [...new Set([...(existing.preferredArea ?? []), ...(intent.preferredAreas ?? [])])];
+    const keepLongerText = (post.text?.length ?? 0) > (existing.originalText?.length ?? 0)
+      ? post.text.slice(0, 5000) : undefined;
+    const widerBudgetMin = intent.budget.min && existing.budgetMin
+      ? BigInt(Math.min(Number(existing.budgetMin), intent.budget.min))
+      : intent.budget.min ? BigInt(intent.budget.min) : undefined;
+    const widerBudgetMax = intent.budget.max && existing.budgetMax
+      ? BigInt(Math.max(Number(existing.budgetMax), intent.budget.max))
+      : intent.budget.max ? BigInt(intent.budget.max) : undefined;
+
+    const lead = await db.lead.update({
+      where: { id: existing.id },
+      data: {
+        ...(keepLongerText && { originalText: keepLongerText }),
+        sourceUrl: post.url,
+        preferredArea: mergedAreas,
+        ...(widerBudgetMin && { budgetMin: widerBudgetMin }),
+        ...(widerBudgetMax && { budgetMax: widerBudgetMax }),
+        budget: intent.budget.raw || existing.budget,
+        propertyType: intent.propertyType || existing.propertyType,
+        timeline: intent.timeline || existing.timeline,
+        buyerPersona: intent.persona || existing.buyerPersona,
+        intentSignals: intent.intentSignals as any,
+        lastSeenAt: new Date(),
+        source: sourceName,
+      },
+    });
+    return { lead, created: false };
+  }
+
+  const lead = await db.lead.create({
+    data: {
+      orgId, platform: platform as any, platformUserId,
+      name: intent.extractedName ?? post.author,
+      profileUrl: post.profileUrl ?? null, sourceUrl: post.url,
+      originalText: post.text.slice(0, 5000),
+      budget: intent.budget.raw,
+      budgetMin: intent.budget.min ? BigInt(intent.budget.min) : null,
+      budgetMax: intent.budget.max ? BigInt(intent.budget.max) : null,
+      preferredArea: intent.preferredAreas, propertyType: intent.propertyType,
+      timeline: intent.timeline, buyerPersona: intent.persona,
+      intentSignals: intent.intentSignals as any,
+      lastSeenAt: new Date(),
+      source: sourceName,
+    },
+  });
+  return { lead, created: true };
+}
+
+// ---- Auto-score + Notify ----
+
+async function autoScoreAndNotify(orgId: string, leadId: string, tier: PlanTier) {
+  try {
+    const [lead, properties] = await Promise.all([
+      db.lead.findUnique({ where: { id: leadId } }),
+      db.property.findMany({ where: { orgId, status: "ACTIVE" } }),
+    ]);
+    if (!lead) return;
+
+    const propertyAreas = [...new Set(properties.map((p) => p.area))];
+
+    const scoreResult = await scoreLead({
+      originalText: lead.originalText,
+      budget: lead.budget,
+      preferredArea: lead.preferredArea,
+      timeline: lead.timeline,
+      platform: lead.platform,
+      buyerPersona: lead.buyerPersona,
+    }, propertyAreas);
+
+    await db.lead.update({
+      where: { id: lead.id },
+      data: {
+        score: scoreResult.total,
+        scoreBreakdown: scoreResult.breakdown as any,
+        tier: scoreResult.tier,
+      },
+    });
+
+    if (properties.length > 0) {
+      const matches = await matchLeadToProperties(lead, properties);
+      for (const match of matches) {
+        await db.leadPropertyMatch.upsert({
+          where: { leadId_propertyId: { leadId: lead.id, propertyId: match.propertyId } },
+          update: { matchScore: match.score, matchReasons: match.reasons, aiSummary: match.aiSummary },
+          create: {
+            leadId: lead.id, propertyId: match.propertyId,
+            matchScore: match.score, matchReasons: match.reasons, aiSummary: match.aiSummary,
+          },
+        });
+      }
+    }
+
+    await notifyIfHotLead(orgId, {
+      id: lead.id, name: lead.name, platform: lead.platform,
+      source: lead.source, originalText: lead.originalText,
+      score: scoreResult.total, tier: scoreResult.tier,
+    });
+  } catch (e) {
+    console.error(`Auto-score error for lead ${leadId}:`, e);
+  }
+}
+
 // ---- Platform Fetchers ----
 
 async function fetchPosts(
@@ -313,18 +368,14 @@ async function fetchPosts(
       const posts = await searchSubreddit(identifier, keywords, 10);
       return posts.map((p) => ({
         text: `${p.title}\n\n${p.selftext}`,
-        author: p.author,
-        authorId: p.author,
-        url: p.permalink,
+        author: p.author, authorId: p.author, url: p.permalink,
         profileUrl: `https://reddit.com/u/${p.author}`,
       }));
     }
-
     case "FACEBOOK": {
       const posts = await scrapeFacebookGroup(identifier, keywords, 10);
       return posts.map((p) => ({ text: p.text, author: p.author, authorId: p.authorId, url: p.url }));
     }
-
     case "NINETY_NINE_ACRES": {
       const listings = await scrape99Acres(identifier, keywords, 10);
       return listings.map((l) => ({
@@ -332,7 +383,6 @@ async function fetchPosts(
         author: l.sellerName, authorId: l.sellerName.replace(/\s+/g, "_").toLowerCase(), url: l.url,
       }));
     }
-
     case "MAGICBRICKS": {
       const listings = await scrapeMagicBricks(identifier, keywords, 10);
       return listings.map((l) => ({
@@ -340,7 +390,6 @@ async function fetchPosts(
         author: l.sellerName, authorId: l.sellerName.replace(/\s+/g, "_").toLowerCase(), url: l.url,
       }));
     }
-
     case "NOBROKER": {
       const listings = await scrapeNoBroker(identifier, keywords, 10);
       return listings.map((l) => ({
@@ -348,7 +397,6 @@ async function fetchPosts(
         author: l.sellerName, authorId: l.sellerName.replace(/\s+/g, "_").toLowerCase(), url: l.url,
       }));
     }
-
     case "GOOGLE_MAPS": {
       const places = await scrapeGoogleMaps(identifier, "Hyderabad", 10);
       const posts: ScrapedPost[] = [];
@@ -364,7 +412,6 @@ async function fetchPosts(
       }
       return posts;
     }
-
     case "INSTAGRAM": {
       const posts = await scrapeInstagram(identifier, keywords, 10);
       const results: ScrapedPost[] = [];
@@ -376,66 +423,31 @@ async function fetchPosts(
       }
       return results;
     }
-
     case "TWITTER": {
       const tweets = await scrapeTwitter(identifier, keywords, 10);
       return tweets.map((t) => ({ text: t.text, author: t.author, authorId: t.authorId, url: t.url, profileUrl: `https://x.com/${t.author}` }));
     }
-
     case "YOUTUBE": {
       const comments = await scrapeYouTubeComments(keywords.length > 0 ? `${identifier} ${keywords[0]}` : identifier, 15);
       return comments.map((c) => ({ text: c.text, author: c.author, authorId: c.authorId, url: c.videoUrl }));
     }
-
     case "LINKEDIN": {
       const posts = await scrapeLinkedIn(identifier, keywords, 10);
       return posts.map((p) => ({ text: p.text, author: p.author, authorId: p.authorId, url: p.url, profileUrl: p.authorId }));
     }
-
     case "QUORA": {
       const questions = await scrapeQuora(identifier, keywords, 10);
       return questions.map((q) => ({ text: `${q.question}\n\n${q.details}`, author: q.author, authorId: q.authorId, url: q.url }));
     }
-
     case "TELEGRAM": {
       const messages = await scrapeTelegram(identifier, keywords, 15);
       return messages.map((m) => ({ text: m.text, author: m.author, authorId: String(m.authorId), url: m.url }));
     }
-
     case "COMMONFLOOR": {
       const posts = await scrapeCommonFloor(identifier, keywords, 10);
       return posts.map((p) => ({ text: p.text, author: p.author, authorId: p.author.replace(/\s+/g, "_").toLowerCase(), url: p.url }));
     }
-
     default:
       return [];
   }
-}
-
-async function upsertLead(orgId: string, platform: string, post: ScrapedPost, intent: DetectedIntent) {
-  const platformUserId = post.authorId || post.author;
-  return db.lead.upsert({
-    where: { orgId_platform_platformUserId: { orgId, platform: platform as any, platformUserId } },
-    update: {
-      originalText: post.text.slice(0, 5000), sourceUrl: post.url,
-      budget: intent.budget.raw,
-      budgetMin: intent.budget.min ? BigInt(intent.budget.min) : null,
-      budgetMax: intent.budget.max ? BigInt(intent.budget.max) : null,
-      preferredArea: intent.preferredAreas, propertyType: intent.propertyType,
-      timeline: intent.timeline, buyerPersona: intent.persona,
-      intentSignals: intent.intentSignals as any,
-    },
-    create: {
-      orgId, platform: platform as any, platformUserId,
-      name: intent.extractedName ?? post.author,
-      profileUrl: post.profileUrl ?? null, sourceUrl: post.url,
-      originalText: post.text.slice(0, 5000),
-      budget: intent.budget.raw,
-      budgetMin: intent.budget.min ? BigInt(intent.budget.min) : null,
-      budgetMax: intent.budget.max ? BigInt(intent.budget.max) : null,
-      preferredArea: intent.preferredAreas, propertyType: intent.propertyType,
-      timeline: intent.timeline, buyerPersona: intent.persona,
-      intentSignals: intent.intentSignals as any,
-    },
-  });
 }

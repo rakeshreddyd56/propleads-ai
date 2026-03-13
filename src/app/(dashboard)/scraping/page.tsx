@@ -9,9 +9,29 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Globe, Play, Plus, Loader2, Trash2, Zap, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Globe, Play, Plus, Loader2, Trash2, Zap, CheckCircle2, XCircle, Clock, Lock, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+const TIER_PLATFORMS: Record<string, string[]> = {
+  FREE: ["REDDIT"],
+  STARTER: [
+    "REDDIT", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
+    "FACEBOOK", "COMMONFLOOR",
+  ],
+  GROWTH: [
+    "REDDIT", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
+    "FACEBOOK", "COMMONFLOOR",
+    "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
+    "GOOGLE_MAPS",
+  ],
+  PRO: [
+    "REDDIT", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
+    "FACEBOOK", "COMMONFLOOR",
+    "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
+    "GOOGLE_MAPS",
+  ],
+};
 
 const platformConfig: Record<string, { label: string; icon: string; requiresApify: boolean; description: string }> = {
   REDDIT: { label: "Reddit", icon: "🔴", requiresApify: false, description: "Public posts via Firecrawl web search" },
@@ -39,12 +59,23 @@ export default function ScrapingPage() {
   const [scoring, setScoring] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newSource, setNewSource] = useState({ platform: "", identifier: "", displayName: "", keywords: "" });
+  const [tier, setTier] = useState<string>("FREE");
+  const [runsToday, setRunsToday] = useState(0);
+  const [maxRuns, setMaxRuns] = useState(2);
+  const [runHistory, setRunHistory] = useState<any[]>([]);
 
   useEffect(() => {
     fetch("/api/scraping/sources")
       .then((r) => r.json())
       .then(setSources)
       .finally(() => setLoading(false));
+    fetch("/api/plans").then((r) => r.json()).then((d) => {
+      setTier(d.current.tier);
+      setRunsToday(d.current.runsToday);
+      const limits: Record<string, number> = { FREE: 2, STARTER: 5, GROWTH: 10, PRO: 999 };
+      setMaxRuns(limits[d.current.tier] ?? 2);
+    });
+    fetch("/api/scraping/run-groups?limit=5").then((r) => r.json()).then(setRunHistory);
   }, []);
 
   async function refreshSources() {
@@ -78,42 +109,79 @@ export default function ScrapingPage() {
 
   async function runAll() {
     setRunningAll(true);
-    const activeSources = sources.filter((s) => s.isActive);
-    if (activeSources.length === 0) {
-      toast.error("No active sources");
-      setRunningAll(false);
-      return;
-    }
 
-    let totalLeads = 0;
-    let succeeded = 0;
+    try {
+      // Create a run group first
+      const groupRes = await fetch("/api/scraping/run-group", { method: "POST" });
+      const groupData = await groupRes.json();
 
-    for (const source of activeSources) {
-      const config = platformConfig[source.platform];
-      setRunningSources((prev) => new Set([...prev, source.id]));
+      if (!groupRes.ok) {
+        toast.error(groupData.error ?? "Failed to create run group");
+        setRunningAll(false);
+        return;
+      }
 
-      try {
-        const res = await fetch("/api/scraping/run-source", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sourceId: source.id }),
-        });
-        const data = await res.json();
-        if (!data.error) {
-          totalLeads += data.leadsFound ?? 0;
-          succeeded++;
-          if (data.leadsFound > 0) {
-            toast.success(`${config?.icon} ${source.displayName}: ${data.leadsFound} leads`);
+      const { runGroupId, eligible, locked } = groupData;
+
+      if (locked.length > 0) {
+        const lockedNames = locked.map((s: any) => platformConfig[s.platform]?.label ?? s.platform).join(", ");
+        toast.warning(`${locked.length} source(s) locked on ${tier} plan: ${lockedNames}. Upgrade to unlock.`);
+      }
+
+      if (eligible.length === 0) {
+        toast.error("No eligible sources for your plan");
+        setRunningAll(false);
+        return;
+      }
+
+      let totalNew = 0;
+      let totalUpdated = 0;
+      let totalSkipped = 0;
+      let succeeded = 0;
+
+      for (const source of eligible) {
+        const config = platformConfig[source.platform];
+        setRunningSources((prev) => new Set([...prev, source.id]));
+
+        try {
+          const res = await fetch("/api/scraping/run-source", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sourceId: source.id, runGroupId }),
+          });
+          const data = await res.json();
+          if (!data.error) {
+            totalNew += data.newLeads ?? data.leadsFound ?? 0;
+            totalUpdated += data.updatedLeads ?? 0;
+            totalSkipped += data.skippedLeads ?? 0;
+            succeeded++;
+            if ((data.newLeads ?? data.leadsFound ?? 0) > 0) {
+              toast.success(`${config?.icon} ${source.displayName}: ${data.newLeads ?? data.leadsFound} new leads`);
+            }
+          } else {
+            toast.error(`${config?.icon} ${source.displayName}: ${data.error}`);
           }
+        } catch {
+          toast.error(`${source.displayName}: Failed`);
         }
-      } catch {}
 
-      setRunningSources((prev) => { const n = new Set(prev); n.delete(source.id); return n; });
+        setRunningSources((prev) => { const n = new Set(prev); n.delete(source.id); return n; });
+      }
+
+      const parts = [`${totalNew} new`];
+      if (totalUpdated > 0) parts.push(`${totalUpdated} updated`);
+      if (totalSkipped > 0) parts.push(`${totalSkipped} skipped`);
+      toast.success(`Done! ${parts.join(", ")} from ${succeeded} sources`);
+
+      // Refresh sources, plan info, and run history
+      await refreshSources();
+      setRunsToday((prev) => prev + 1);
+      fetch("/api/scraping/run-groups?limit=5").then((r) => r.json()).then(setRunHistory);
+    } catch {
+      toast.error("Run failed");
+    } finally {
+      setRunningAll(false);
     }
-
-    toast.success(`Done! ${totalLeads} leads from ${succeeded} sources`);
-    await refreshSources();
-    setRunningAll(false);
   }
 
   async function scoreLeads() {
@@ -180,7 +248,15 @@ export default function ScrapingPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Lead Sources</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">Lead Sources</h1>
+            <Badge variant={tier === "FREE" ? "secondary" : tier === "PRO" ? "default" : "outline"} className="text-xs">
+              {tier} Plan
+            </Badge>
+            <span className="text-sm text-zinc-500">
+              {runsToday}/{maxRuns} runs today
+            </span>
+          </div>
           <p className="text-sm text-zinc-500">
             {activeSources} active / {sources.length} total sources · {totalLeads} leads last run
           </p>
@@ -268,6 +344,7 @@ export default function ScrapingPage() {
                   <SourceCard
                     key={s.id}
                     source={s}
+                    tier={tier}
                     isRunning={runningSources.has(s.id)}
                     onRun={() => runSource(s.id, s.displayName)}
                     onToggle={() => toggleSource(s.id, s.isActive)}
@@ -279,22 +356,44 @@ export default function ScrapingPage() {
           ))}
         </div>
       )}
+
+      {/* Run History */}
+      {runHistory.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold">Run History</h2>
+          {runHistory.map((group: any) => (
+            <RunHistoryCard key={group.id} group={group} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function SourceCard({
-  source: s, isRunning, onRun, onToggle, onDelete,
+  source: s, tier, isRunning, onRun, onToggle, onDelete,
 }: {
-  source: any; isRunning: boolean; onRun: () => void; onToggle: () => void; onDelete: () => void;
+  source: any; tier: string; isRunning: boolean; onRun: () => void; onToggle: () => void; onDelete: () => void;
 }) {
   const config = platformConfig[s.platform];
   const requiresApify = config?.requiresApify ?? false;
   const lastRun = s.runs?.[0];
   const lastStatus = lastRun?.status;
+  const isLocked = !(TIER_PLATFORMS[tier] ?? TIER_PLATFORMS.FREE).includes(s.platform);
 
   return (
-    <Card className={cn("transition-all", !s.isActive && "opacity-50", isRunning && "ring-2 ring-blue-400")}>
+    <Card className={cn(
+      "relative transition-all",
+      !s.isActive && "opacity-50",
+      isRunning && "ring-2 ring-blue-400",
+      isLocked && "opacity-60",
+    )}>
+      {isLocked && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-900/60 rounded-xl backdrop-blur-[2px]">
+          <Lock className="h-6 w-6 text-zinc-300 mb-1" />
+          <span className="text-xs font-medium text-zinc-300">Upgrade to unlock</span>
+        </div>
+      )}
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -320,10 +419,10 @@ function SourceCard({
             size="icon"
             className="h-7 w-7 text-zinc-400 hover:text-blue-500"
             onClick={onRun}
-            disabled={isRunning || !s.isActive}
-            title="Run this source"
+            disabled={isRunning || !s.isActive || isLocked}
+            title={isLocked ? "Upgrade to unlock this platform" : "Run this source"}
           >
-            {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isLocked ? <Lock className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-red-500" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5" />
@@ -367,6 +466,75 @@ function SourceCard({
           </div>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+function RunHistoryCard({ group }: { group: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const totalNew = group.runs?.reduce((sum: number, r: any) => sum + (r.newLeads ?? r.leadsFound ?? 0), 0) ?? 0;
+  const totalUpdated = group.runs?.reduce((sum: number, r: any) => sum + (r.updatedLeads ?? 0), 0) ?? 0;
+  const statusCounts = (group.runs ?? []).reduce(
+    (acc: Record<string, number>, r: any) => { acc[r.status] = (acc[r.status] ?? 0) + 1; return acc; },
+    {} as Record<string, number>,
+  );
+  const allCompleted = statusCounts.COMPLETED === (group.runs?.length ?? 0);
+  const hasFailed = (statusCounts.FAILED ?? 0) > 0;
+
+  return (
+    <Card>
+      <CardHeader
+        className="flex flex-row items-center justify-between py-3 cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-3">
+          {expanded ? <ChevronDown className="h-4 w-4 text-zinc-400" /> : <ChevronRight className="h-4 w-4 text-zinc-400" />}
+          <Badge
+            variant={allCompleted ? "default" : hasFailed ? "destructive" : "secondary"}
+            className="text-[10px]"
+          >
+            {allCompleted ? "COMPLETED" : hasFailed ? "PARTIAL" : group.status ?? "RUNNING"}
+          </Badge>
+          <span className="text-sm text-zinc-500">
+            {group.startedAt ? new Date(group.startedAt).toLocaleString() : "Unknown"}
+          </span>
+          <Badge variant="outline" className="text-[10px]">{group.tier ?? "FREE"}</Badge>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="font-medium text-green-600">{totalNew} new</span>
+          {totalUpdated > 0 && <span className="text-zinc-500">{totalUpdated} updated</span>}
+          <span className="text-zinc-400">{group.runs?.length ?? 0} sources</span>
+        </div>
+      </CardHeader>
+      {expanded && group.runs?.length > 0 && (
+        <CardContent className="pt-0 pb-3">
+          <div className="space-y-1.5 border-t pt-2">
+            {group.runs.map((run: any) => {
+              const config = platformConfig[run.source?.platform];
+              return (
+                <div key={run.id} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span>{config?.icon ?? "🌐"}</span>
+                    <span className="font-medium">{run.source?.displayName ?? run.sourceId}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>{run.postsScanned ?? 0} scanned</span>
+                    <span className="font-medium text-green-600">{run.newLeads ?? run.leadsFound ?? 0} new</span>
+                    {(run.updatedLeads ?? 0) > 0 && <span className="text-zinc-500">{run.updatedLeads} updated</span>}
+                    {(run.skippedLeads ?? 0) > 0 && <span className="text-zinc-400">{run.skippedLeads} skipped</span>}
+                    <Badge
+                      variant={run.status === "COMPLETED" ? "default" : run.status === "FAILED" ? "destructive" : "secondary"}
+                      className="text-[9px] px-1"
+                    >
+                      {run.status}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }

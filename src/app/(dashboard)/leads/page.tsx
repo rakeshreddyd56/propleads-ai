@@ -244,8 +244,13 @@ export default function LeadsPage() {
                       <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", pm.color)}>
                         {pm.icon} {pm.label}
                       </span>
-                      {sourceLabel && (
-                        <span className="text-xs text-zinc-400">{sourceLabel}</span>
+                      {(lead.source || sourceLabel) && (
+                        <span className="text-xs text-zinc-400">{lead.source || sourceLabel}</span>
+                      )}
+                      {lead.lastSeenAt && (
+                        <span className="text-[10px] text-zinc-300 ml-auto">
+                          Last seen {new Date(lead.lastSeenAt).toLocaleDateString()}
+                        </span>
                       )}
                     </div>
 

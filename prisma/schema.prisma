@@ -8,19 +8,27 @@ datasource db {
 }
 
 model Organization {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  clerkOrgId  String?  @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  clerkOrgId       String?  @unique
+  planTier         PlanTier @default(FREE)
+  planBillingCycle String   @default("monthly")
+  runsToday        Int      @default(0)
+  runsResetAt      DateTime?
+  slackWebhookUrl  String?
+  notifyEmail      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  properties  Property[]
-  leads       Lead[]
-  campaigns   Campaign[]
-  scrapingSources ScrapingSource[]
-  templates   MessageTemplate[]
-  teamMembers TeamMember[]
+  properties       Property[]
+  leads            Lead[]
+  campaigns        Campaign[]
+  scrapingSources  ScrapingSource[]
+  templates        MessageTemplate[]
+  teamMembers      TeamMember[]
+  runGroups        RunGroup[]
+  postHashes       PostHash[]
 }
 
 model TeamMember {
@@ -124,6 +132,10 @@ model Lead {
 
   enrichedData    Json?
   enrichedAt      DateTime?
+
+  lastSeenAt      DateTime?
+  source          String?
+  runGroupId      String?
 
   status          LeadStatus @default(NEW)
   optInWhatsApp   Boolean   @default(false)
@@ -328,17 +340,21 @@ model ScrapingSource {
 }
 
 model ScrapingRun {
-  id          String   @id @default(cuid())
-  sourceId    String
-  status      RunStatus @default(RUNNING)
-  postsScanned Int     @default(0)
-  leadsFound  Int      @default(0)
-  errors      Json?
-  startedAt   DateTime @default(now())
-  completedAt DateTime?
-  durationMs  Int?
+  id              String   @id @default(cuid())
+  sourceId        String
+  runGroupId      String?
+  status          RunStatus @default(RUNNING)
+  postsScanned    Int      @default(0)
+  leadsFound      Int      @default(0)
+  leadsUpdated    Int      @default(0)
+  postsSkippedDup Int      @default(0)
+  errors          Json?
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
 
-  source      ScrapingSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source          ScrapingSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  runGroup        RunGroup? @relation(fields: [runGroupId], references: [id])
 
   @@index([sourceId, startedAt])
 }
@@ -370,4 +386,53 @@ enum CoachType {
   OBJECTION_HANDLING
   PLAYBOOK_GENERATION
   MARKET_INSIGHT
+}
+
+// ---- Tiered Scraping ----
+
+enum PlanTier {
+  FREE
+  STARTER
+  GROWTH
+  PRO
+}
+
+enum RunGroupStatus {
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+model RunGroup {
+  id                String         @id @default(cuid())
+  orgId             String
+  tier              PlanTier
+  triggeredBy       String         @default("manual")
+  sourcesTotal      Int            @default(0)
+  sourcesCompleted  Int            @default(0)
+  sourcesErrored    Int            @default(0)
+  totalNewLeads     Int            @default(0)
+  totalUpdatedLeads Int            @default(0)
+  status            RunGroupStatus @default(RUNNING)
+  startedAt         DateTime       @default(now())
+  completedAt       DateTime?
+
+  org               Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  runs              ScrapingRun[]
+
+  @@index([orgId, startedAt])
+}
+
+model PostHash {
+  id        String   @id @default(cuid())
+  orgId     String
+  hash      String
+  platform  Platform
+  createdAt DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, hash])
+  @@index([orgId, platform])
 }

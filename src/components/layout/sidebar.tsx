@@ -17,7 +17,7 @@ const navItems = [
   { href: "/coach", label: "AI Coach", icon: MessageSquare },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/market", label: "Market Intel", icon: MapPin },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/settings/plan", label: "Plans & Settings", icon: Settings },
 ];
 
 export function Sidebar() {

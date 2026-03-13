@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveOrg } from "@/lib/auth";
 import { runSingleSource } from "@/lib/scraping/engine";
+import { db } from "@/lib/db";
 
 export const maxDuration = 60;
 
@@ -8,14 +9,18 @@ export async function POST(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { sourceId } = await req.json();
+  const { sourceId, runGroupId } = await req.json();
   if (!sourceId) return NextResponse.json({ error: "sourceId required" }, { status: 400 });
 
-  try {
-    const result = await runSingleSource(orgId, sourceId);
-    return NextResponse.json(result);
-  } catch (error: any) {
-    console.error(`Scraping source ${sourceId} error:`, error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const org = await db.organization.findUnique({
+    where: { id: orgId },
+    select: { planTier: true },
+  });
+
+  const result = await runSingleSource(orgId, sourceId, {
+    runGroupId,
+    tier: (org?.planTier as any) ?? "FREE",
+  });
+
+  return NextResponse.json(result);
 }

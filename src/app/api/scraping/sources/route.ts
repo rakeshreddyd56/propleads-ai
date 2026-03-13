@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveOrg } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { isPlatformAllowed, type PlanTier } from "@/lib/scraping/tiers";
 
 const sourceSchema = z.object({
   platform: z.enum(["REDDIT", "FACEBOOK", "TWITTER", "QUORA", "GOOGLE_MAPS", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER", "COMMONFLOOR", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "TELEGRAM"]),
@@ -71,6 +72,18 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const data = sourceSchema.parse(body);
+
+    // Check tier allows this platform
+    const org = await db.organization.findUnique({
+      where: { id: orgId },
+      select: { planTier: true },
+    });
+    if (!isPlatformAllowed((org?.planTier ?? "FREE") as PlanTier, data.platform)) {
+      return NextResponse.json(
+        { error: `${data.platform} requires a higher plan. Upgrade to unlock.` },
+        { status: 403 }
+      );
+    }
 
     const source = await db.scrapingSource.upsert({
       where: { orgId_platform_identifier: { orgId, platform: data.platform, identifier: data.identifier } },

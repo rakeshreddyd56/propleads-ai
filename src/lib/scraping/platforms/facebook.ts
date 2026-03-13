@@ -1,4 +1,4 @@
-import { runApifyActor, APIFY_ACTORS } from "../apify";
+import { searchWeb } from "../firecrawl";
 
 export interface FacebookPost {
   id: string;
@@ -14,25 +14,22 @@ export interface FacebookPost {
 export async function scrapeFacebookGroup(
   groupId: string,
   keywords: string[],
-  limit = 25
+  limit = 10
 ): Promise<FacebookPost[]> {
-  const items = await runApifyActor(APIFY_ACTORS.FACEBOOK_GROUPS, {
-    groupUrls: [`https://www.facebook.com/groups/${groupId}`],
-    maxPosts: limit,
-    maxComments: 0,
-    searchQuery: keywords.slice(0, 5).join(" "),
-  });
+  const keywordStr = keywords.slice(0, 3).join(" ");
+  const query = `site:facebook.com ${keywordStr} hyderabad property flat buy`.trim();
+  const results = await searchWeb(query, limit);
 
-  return items
-    .filter((item: any) => item.text && item.user?.name)
-    .map((item: any) => ({
-      id: item.postId ?? item.id ?? String(Date.now()),
-      text: item.text ?? "",
-      author: item.user?.name ?? "Unknown",
-      authorId: item.user?.id ?? item.user?.name ?? "unknown",
-      url: item.url ?? item.postUrl ?? `https://facebook.com/groups/${groupId}`,
-      timestamp: item.timestamp ?? item.date ?? new Date().toISOString(),
-      likes: item.likes ?? item.reactionsCount ?? 0,
-      comments: item.comments ?? item.commentsCount ?? 0,
+  return results
+    .filter((r) => r.url?.includes("facebook.com"))
+    .map((r) => ({
+      id: `fb-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+      text: r.markdown?.slice(0, 2000) ?? r.title ?? "",
+      author: "Facebook User",
+      authorId: `fb-${Buffer.from(r.url).toString("base64").slice(0, 8)}`,
+      url: r.url,
+      timestamp: new Date().toISOString(),
+      likes: 0,
+      comments: 0,
     }));
 }

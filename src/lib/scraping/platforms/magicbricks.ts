@@ -1,34 +1,37 @@
-import { runApifyActor, APIFY_ACTORS } from "../apify";
+import { searchWeb } from "../firecrawl";
 import type { PropertyListing } from "./ninety-nine-acres";
 
-/**
- * Scrapes MagicBricks for property listings and buyer inquiries.
- * Returns normalized property listings that can be analyzed for buyer intent.
- */
 export async function scrapeMagicBricks(
   city: string,
   keywords: string[],
-  limit = 25
+  limit = 10
 ): Promise<PropertyListing[]> {
-  const searchQuery = keywords.join(" ");
-  const items = await runApifyActor(APIFY_ACTORS.MAGICBRICKS, {
-    searchUrl: `https://www.magicbricks.com/property-for-sale/residential-real-estate?bedroom=&proptype=Multistorey-Apartment,Builder-Floor-Apartment,Penthouse,Studio-Apartment,Residential-House,Villa&cityName=${city}&keyword=${encodeURIComponent(searchQuery)}`,
-    maxItems: limit,
-  });
+  const keywordStr = keywords.slice(0, 3).join(" ");
+  const query = `site:magicbricks.com ${city} ${keywordStr} property for sale`.trim();
+  const results = await searchWeb(query, limit);
 
-  return items.map((item: any) => ({
-    id: item.id ?? item.propertyId ?? String(Math.random()),
-    title: item.title ?? item.propertyTitle ?? "",
-    description: item.description ?? item.propertyDescription ?? "",
-    price: item.price ?? item.priceFormatted ?? "",
-    location: item.location ?? item.address ?? item.locality ?? "",
-    area: item.locality ?? item.area ?? city,
-    propertyType: item.propertyType ?? item.type ?? "",
-    sellerName: item.sellerName ?? item.builderName ?? item.agentName ?? "Unknown",
-    sellerContact: item.sellerPhone ?? item.contactNumber ?? null,
-    url: item.url ?? item.propertyUrl ?? "",
-    postedDate: item.postedDate ?? item.date ?? new Date().toISOString(),
-    sqft: item.sqft ?? item.superBuiltUpArea ?? item.carpetArea ?? null,
-    bedrooms: item.bedrooms ?? item.bhk ?? null,
-  }));
+  return results
+    .filter((r) => r.url?.includes("magicbricks.com"))
+    .map((r) => {
+      const text = r.markdown ?? "";
+      const priceMatch = text.match(/₹\s*[\d,.]+\s*(?:Lac|Lakh|Cr|Crore)?/i) ?? text.match(/Rs\.?\s*[\d,.]+\s*(?:Lac|Lakh|Cr|Crore)?/i);
+      const sqftMatch = text.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|sft)/i);
+      const bhkMatch = text.match(/(\d)\s*BHK/i);
+
+      return {
+        id: `mb-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+        title: r.title?.replace(/ - MagicBricks$/, "") ?? "",
+        description: text.slice(0, 1000),
+        price: priceMatch?.[0] ?? "",
+        location: city,
+        area: city,
+        propertyType: bhkMatch ? `${bhkMatch[1]}BHK` : "",
+        sellerName: "MagicBricks Listing",
+        sellerContact: null,
+        url: r.url,
+        postedDate: new Date().toISOString(),
+        sqft: sqftMatch ? parseInt(sqftMatch[1].replace(/,/g, "")) : null,
+        bedrooms: bhkMatch ? parseInt(bhkMatch[1]) : null,
+      };
+    });
 }

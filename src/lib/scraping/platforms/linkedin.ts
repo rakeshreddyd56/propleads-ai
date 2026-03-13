@@ -1,4 +1,4 @@
-import { runApifyActor, APIFY_ACTORS } from "../apify";
+import { searchWeb } from "../firecrawl";
 
 export interface LinkedInPost {
   id: string;
@@ -12,38 +12,26 @@ export interface LinkedInPost {
   comments: number;
 }
 
-/**
- * Scrapes LinkedIn for real estate-related posts.
- * Targets professionals posting about property buying, relocation, investment.
- * LinkedIn is especially valuable for IT professional and NRI personas.
- */
 export async function scrapeLinkedIn(
   searchQuery: string,
   keywords: string[],
-  limit = 20
+  limit = 10
 ): Promise<LinkedInPost[]> {
-  const query = keywords.length > 0
-    ? keywords.slice(0, 5).join(" ")
-    : searchQuery;
+  const keywordStr = keywords.length > 0 ? keywords.slice(0, 3).join(" ") : searchQuery;
+  const query = `site:linkedin.com/posts ${keywordStr} hyderabad real estate property`.trim();
+  const results = await searchWeb(query, limit);
 
-  // Use LinkedIn profile scraper to find real estate professionals
-  // and their posts about property
-  const items = await runApifyActor(APIFY_ACTORS.LINKEDIN, {
-    searchUrl: `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(query)}&origin=GLOBAL_SEARCH_HEADER`,
-    maxResults: limit,
-  });
-
-  return items
-    .filter((item: any) => item.text || item.commentary)
-    .map((item: any) => ({
-      id: item.urn ?? item.id ?? String(Math.random()),
-      text: item.text ?? item.commentary ?? "",
-      author: item.authorName ?? item.author?.name ?? "Unknown",
-      authorId: item.authorProfileUrl ?? item.author?.url ?? "unknown",
-      authorTitle: item.authorHeadline ?? item.author?.headline ?? "",
-      url: item.postUrl ?? item.url ?? "",
-      timestamp: item.postedAt ?? item.date ?? new Date().toISOString(),
-      likes: item.numLikes ?? item.socialCounts?.numLikes ?? 0,
-      comments: item.numComments ?? item.socialCounts?.numComments ?? 0,
+  return results
+    .filter((r) => r.url?.includes("linkedin.com"))
+    .map((r) => ({
+      id: `li-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+      text: r.markdown?.slice(0, 2000) ?? r.title ?? "",
+      author: r.title?.split(" - ")?.[0] ?? "LinkedIn User",
+      authorId: r.url,
+      authorTitle: "",
+      url: r.url,
+      timestamp: new Date().toISOString(),
+      likes: 0,
+      comments: 0,
     }));
 }

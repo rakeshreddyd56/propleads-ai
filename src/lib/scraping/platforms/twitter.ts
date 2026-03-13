@@ -1,4 +1,4 @@
-import { runApifyActor, APIFY_ACTORS } from "../apify";
+import { searchWeb } from "../firecrawl";
 
 export interface Tweet {
   id: string;
@@ -12,36 +12,29 @@ export interface Tweet {
   replies: number;
 }
 
-/**
- * Scrapes Twitter/X for property-related tweets.
- * Searches for keywords related to buying/investing in real estate.
- */
 export async function scrapeTwitter(
   searchQuery: string,
   keywords: string[],
-  limit = 25
+  limit = 10
 ): Promise<Tweet[]> {
-  const query = keywords.length > 0
-    ? keywords.slice(0, 5).join(" OR ")
-    : searchQuery;
+  const keywordStr = keywords.length > 0 ? keywords.slice(0, 3).join(" ") : searchQuery;
+  const query = `site:x.com OR site:twitter.com ${keywordStr} hyderabad property flat buy`.trim();
+  const results = await searchWeb(query, limit);
 
-  const items = await runApifyActor(APIFY_ACTORS.TWITTER, {
-    searchTerms: [query],
-    maxTweets: limit,
-    sort: "Latest",
-  });
-
-  return items
-    .filter((item: any) => item.full_text || item.text)
-    .map((item: any) => ({
-      id: item.id_str ?? item.id ?? String(Math.random()),
-      text: item.full_text ?? item.text ?? "",
-      author: item.user?.screen_name ?? item.author?.userName ?? "unknown",
-      authorId: item.user?.id_str ?? item.author?.id ?? "unknown",
-      url: item.url ?? `https://x.com/${item.user?.screen_name ?? "i"}/status/${item.id_str ?? ""}`,
-      timestamp: item.created_at ?? item.createdAt ?? new Date().toISOString(),
-      likes: item.favorite_count ?? item.likeCount ?? 0,
-      retweets: item.retweet_count ?? item.retweetCount ?? 0,
-      replies: item.reply_count ?? item.replyCount ?? 0,
-    }));
+  return results
+    .filter((r) => r.url?.includes("x.com") || r.url?.includes("twitter.com"))
+    .map((r) => {
+      const authorMatch = r.url.match(/(?:x\.com|twitter\.com)\/([^/]+)/);
+      return {
+        id: `tw-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+        text: r.markdown?.slice(0, 2000) ?? r.title ?? "",
+        author: authorMatch?.[1] ?? "unknown",
+        authorId: authorMatch?.[1] ?? "unknown",
+        url: r.url,
+        timestamp: new Date().toISOString(),
+        likes: 0,
+        retweets: 0,
+        replies: 0,
+      };
+    });
 }

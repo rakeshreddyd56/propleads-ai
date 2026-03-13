@@ -37,11 +37,6 @@ type SourceResult = {
   error?: string;
 };
 
-const APIFY_PLATFORMS = [
-  "FACEBOOK", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
-  "GOOGLE_MAPS", "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
-];
-
 // Max posts to process per source (keeps total AI calls low)
 const MAX_POSTS_PER_SOURCE = 5;
 // Global timeout — stop well before Vercel's 60s limit
@@ -63,29 +58,7 @@ export async function runScraping(orgId: string) {
   const results: SourceResult[] = [];
   const startGlobal = Date.now();
 
-  // Separate Apify sources from free sources — process free ones first
-  const freeSources = sources.filter((s) => !APIFY_PLATFORMS.includes(s.platform));
-  const apifySources = sources.filter((s) => APIFY_PLATFORMS.includes(s.platform));
-
-  // Quick-skip all Apify sources if no token (don't waste time on DB operations)
-  if (!process.env.APIFY_API_TOKEN) {
-    for (const source of apifySources) {
-      results.push({
-        sourceId: source.id,
-        platform: source.platform,
-        postsScanned: 0,
-        leadsFound: 0,
-        error: "APIFY_API_TOKEN not configured",
-      });
-    }
-  }
-
-  // Process free sources (Reddit, CommonFloor) first
-  const sourcesToProcess = process.env.APIFY_API_TOKEN
-    ? [...freeSources, ...apifySources]
-    : freeSources;
-
-  for (const source of sourcesToProcess) {
+  for (const source of sources) {
     // Stop if approaching global timeout
     if (Date.now() - startGlobal > GLOBAL_TIMEOUT_MS) {
       results.push({
@@ -192,17 +165,6 @@ export async function runSingleSource(orgId: string, sourceId: string) {
     where: { id: sourceId, orgId },
   });
   if (!source) throw new Error("Source not found");
-
-  // Quick-fail for Apify sources without token
-  if (APIFY_PLATFORMS.includes(source.platform) && !process.env.APIFY_API_TOKEN) {
-    return {
-      sourceId: source.id,
-      platform: source.platform,
-      postsScanned: 0,
-      leadsFound: 0,
-      error: "APIFY_API_TOKEN not configured. Get one free at apify.com",
-    };
-  }
 
   const propertyContext = await getPropertyContext(orgId);
   const enrichedKeywords = enrichKeywords(source.keywords, propertyContext);
@@ -342,8 +304,8 @@ async function fetchPosts(
   identifier: string,
   keywords: string[]
 ): Promise<ScrapedPost[]> {
-  if (APIFY_PLATFORMS.includes(platform) && !process.env.APIFY_API_TOKEN) {
-    throw new Error(`${platform} requires APIFY_API_TOKEN. Get one free at apify.com`);
+  if (!process.env.FIRECRAWL_API_KEY && platform !== "REDDIT") {
+    throw new Error(`${platform} requires FIRECRAWL_API_KEY for web search`);
   }
 
   switch (platform) {

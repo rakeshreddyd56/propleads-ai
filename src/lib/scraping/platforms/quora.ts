@@ -1,4 +1,4 @@
-import { runApifyActor, APIFY_ACTORS } from "../apify";
+import { searchWeb } from "../firecrawl";
 
 export interface QuoraQuestion {
   id: string;
@@ -12,36 +12,26 @@ export interface QuoraQuestion {
   timestamp: string;
 }
 
-/**
- * Scrapes Quora for property-buying questions.
- * Questions like "Where should I buy a flat in Hyderabad?" signal strong buyer intent.
- * The questioner + answer commenters are both potential leads.
- */
 export async function scrapeQuora(
   searchQuery: string,
   keywords: string[],
-  limit = 20
+  limit = 10
 ): Promise<QuoraQuestion[]> {
-  const query = keywords.length > 0
-    ? keywords.slice(0, 5).join(" ")
-    : searchQuery;
+  const keywordStr = keywords.length > 0 ? keywords.slice(0, 3).join(" ") : searchQuery;
+  const query = `site:quora.com ${keywordStr} hyderabad buy flat property`.trim();
+  const results = await searchWeb(query, limit);
 
-  const items = await runApifyActor(APIFY_ACTORS.QUORA, {
-    searchTerms: [query],
-    maxResults: limit,
-  });
-
-  return items
-    .filter((item: any) => item.question || item.title)
-    .map((item: any) => ({
-      id: item.qid ?? item.id ?? String(Math.random()),
-      question: item.question ?? item.title ?? "",
-      details: item.details ?? item.questionText ?? item.answer?.text ?? "",
-      author: item.authorName ?? item.author?.name ?? "Anonymous",
-      authorId: item.authorProfile ?? item.author?.url ?? "unknown",
-      url: item.url ?? item.questionUrl ?? "",
-      answers: item.answerCount ?? item.numAnswers ?? 0,
-      followers: item.followerCount ?? 0,
-      timestamp: item.createdAt ?? item.date ?? new Date().toISOString(),
+  return results
+    .filter((r) => r.url?.includes("quora.com"))
+    .map((r) => ({
+      id: `q-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+      question: r.title?.replace(/ - Quora$/, "") ?? "",
+      details: r.markdown?.slice(0, 2000) ?? "",
+      author: "Quora User",
+      authorId: `q-${Buffer.from(r.url).toString("base64").slice(0, 8)}`,
+      url: r.url,
+      answers: 0,
+      followers: 0,
+      timestamp: new Date().toISOString(),
     }));
 }

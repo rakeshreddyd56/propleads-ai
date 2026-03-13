@@ -1,4 +1,4 @@
-import { runApifyActor, APIFY_ACTORS } from "../apify";
+import { searchWeb } from "../firecrawl";
 
 export interface TelegramMessage {
   id: string;
@@ -11,37 +11,25 @@ export interface TelegramMessage {
   views: number;
 }
 
-/**
- * Scrapes Telegram public channels/groups for real estate discussions.
- * Many Indian RE groups operate on Telegram with buyer requirements, price discussions.
- */
 export async function scrapeTelegram(
   channelId: string,
   keywords: string[],
-  limit = 30
+  limit = 10
 ): Promise<TelegramMessage[]> {
-  const items = await runApifyActor(APIFY_ACTORS.TELEGRAM, {
-    channelUrls: [`https://t.me/${channelId}`],
-    maxMessages: limit,
-  });
+  const keywordStr = keywords.slice(0, 3).join(" ");
+  const query = `site:t.me ${channelId} ${keywordStr} hyderabad property flat`.trim();
+  const results = await searchWeb(query, limit);
 
-  // Filter by keywords if provided
-  const keywordLower = keywords.map((k) => k.toLowerCase());
-
-  return items
-    .filter((item: any) => {
-      const text = (item.text ?? item.message ?? "").toLowerCase();
-      if (keywordLower.length === 0) return true;
-      return keywordLower.some((k) => text.includes(k));
-    })
-    .map((item: any) => ({
-      id: item.messageId ?? item.id ?? String(Math.random()),
-      text: item.text ?? item.message ?? "",
-      author: item.senderName ?? item.fromName ?? item.sender?.firstName ?? "Unknown",
-      authorId: item.senderId ?? item.fromId ?? "unknown",
-      channelName: item.channelName ?? item.chatTitle ?? channelId,
-      url: `https://t.me/${channelId}/${item.messageId ?? ""}`,
-      timestamp: item.date ?? item.timestamp ?? new Date().toISOString(),
-      views: item.views ?? item.viewCount ?? 0,
+  return results
+    .filter((r) => r.url?.includes("t.me"))
+    .map((r) => ({
+      id: `tg-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+      text: r.markdown?.slice(0, 2000) ?? r.title ?? "",
+      author: "Telegram User",
+      authorId: `tg-${Buffer.from(r.url).toString("base64").slice(0, 8)}`,
+      channelName: channelId,
+      url: r.url,
+      timestamp: new Date().toISOString(),
+      views: 0,
     }));
 }

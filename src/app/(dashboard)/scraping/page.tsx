@@ -15,18 +15,18 @@ import { cn } from "@/lib/utils";
 
 const platformConfig: Record<string, { label: string; icon: string; requiresApify: boolean; description: string }> = {
   REDDIT: { label: "Reddit", icon: "🔴", requiresApify: false, description: "Public posts via Firecrawl web search" },
-  FACEBOOK: { label: "Facebook", icon: "📘", requiresApify: true, description: "Facebook Groups via Apify" },
-  TWITTER: { label: "X / Twitter", icon: "🐦", requiresApify: true, description: "Tweet search via Apify" },
-  QUORA: { label: "Quora", icon: "❓", requiresApify: true, description: "Property Q&A via Apify" },
-  GOOGLE_MAPS: { label: "Google Maps", icon: "📍", requiresApify: true, description: "Agent/builder reviews via Apify" },
-  NINETY_NINE_ACRES: { label: "99acres", icon: "🏠", requiresApify: true, description: "Property portal via Apify" },
-  MAGICBRICKS: { label: "MagicBricks", icon: "🧱", requiresApify: true, description: "Property portal via Apify" },
-  NOBROKER: { label: "NoBroker", icon: "🔑", requiresApify: true, description: "Direct owner listings via Apify" },
+  FACEBOOK: { label: "Facebook", icon: "📘", requiresApify: false, description: "Facebook Groups via web search" },
+  TWITTER: { label: "X / Twitter", icon: "🐦", requiresApify: false, description: "Tweet search via web search" },
+  QUORA: { label: "Quora", icon: "❓", requiresApify: false, description: "Property Q&A via web search" },
+  GOOGLE_MAPS: { label: "Google Maps", icon: "📍", requiresApify: false, description: "Agent/builder reviews via web search" },
+  NINETY_NINE_ACRES: { label: "99acres", icon: "🏠", requiresApify: false, description: "Property portal via web search" },
+  MAGICBRICKS: { label: "MagicBricks", icon: "🧱", requiresApify: false, description: "Property portal via web search" },
+  NOBROKER: { label: "NoBroker", icon: "🔑", requiresApify: false, description: "Direct owner listings via web search" },
   COMMONFLOOR: { label: "CommonFloor", icon: "🏢", requiresApify: false, description: "Society forums via Firecrawl" },
-  INSTAGRAM: { label: "Instagram", icon: "📸", requiresApify: true, description: "Property hashtags via Apify" },
-  LINKEDIN: { label: "LinkedIn", icon: "💼", requiresApify: true, description: "Professional posts via Apify" },
-  YOUTUBE: { label: "YouTube", icon: "▶️", requiresApify: true, description: "Video comments via Apify" },
-  TELEGRAM: { label: "Telegram", icon: "✈️", requiresApify: true, description: "Group messages via Apify" },
+  INSTAGRAM: { label: "Instagram", icon: "📸", requiresApify: false, description: "Property hashtags via web search" },
+  LINKEDIN: { label: "LinkedIn", icon: "💼", requiresApify: false, description: "Professional posts via web search" },
+  YOUTUBE: { label: "YouTube", icon: "▶️", requiresApify: false, description: "Video comments via web search" },
+  TELEGRAM: { label: "Telegram", icon: "✈️", requiresApify: false, description: "Group messages via web search" },
 };
 
 const platformOptions = Object.keys(platformConfig);

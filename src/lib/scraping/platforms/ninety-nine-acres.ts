@@ -1,4 +1,4 @@
-import { runApifyActor, APIFY_ACTORS } from "../apify";
+import { searchWeb } from "../firecrawl";
 
 export interface PropertyListing {
   id: string;
@@ -16,35 +16,37 @@ export interface PropertyListing {
   bedrooms: number | null;
 }
 
-/**
- * Scrapes 99acres for property buyers/renters looking in specific areas.
- * We look at "wanted" or "requirement" posts, not seller listings.
- * This helps find leads who are actively looking for properties.
- */
 export async function scrape99Acres(
   city: string,
   keywords: string[],
-  limit = 25
+  limit = 10
 ): Promise<PropertyListing[]> {
-  const searchQuery = keywords.join(" ");
-  const items = await runApifyActor(APIFY_ACTORS.NINETY_NINE_ACRES, {
-    searchUrl: `https://www.99acres.com/search/property/buy/${city.toLowerCase()}?search_type=QS&search_location=${city}&preference=S&city=${city}&keyword=${encodeURIComponent(searchQuery)}`,
-    maxItems: limit,
-  });
+  const keywordStr = keywords.slice(0, 3).join(" ");
+  const query = `site:99acres.com ${city} ${keywordStr} buy flat apartment`.trim();
+  const results = await searchWeb(query, limit);
 
-  return items.map((item: any) => ({
-    id: item.id ?? item.propertyId ?? String(Math.random()),
-    title: item.title ?? item.name ?? "",
-    description: item.description ?? item.details ?? "",
-    price: item.price ?? item.priceFormatted ?? "",
-    location: item.location ?? item.address ?? item.locality ?? "",
-    area: item.locality ?? item.area ?? city,
-    propertyType: item.propertyType ?? item.type ?? "",
-    sellerName: item.sellerName ?? item.agentName ?? item.dealerName ?? "Unknown",
-    sellerContact: item.sellerPhone ?? item.agentPhone ?? item.phone ?? null,
-    url: item.url ?? item.propertyUrl ?? "",
-    postedDate: item.postedDate ?? item.date ?? new Date().toISOString(),
-    sqft: item.sqft ?? item.builtUpArea ?? item.carpetArea ?? null,
-    bedrooms: item.bedrooms ?? item.bhk ?? null,
-  }));
+  return results
+    .filter((r) => r.url?.includes("99acres.com"))
+    .map((r) => {
+      const text = r.markdown ?? "";
+      const priceMatch = text.match(/₹\s*[\d,.]+\s*(?:Lac|Lakh|Cr|Crore)?/i) ?? text.match(/Rs\.?\s*[\d,.]+\s*(?:Lac|Lakh|Cr|Crore)?/i);
+      const sqftMatch = text.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|sft)/i);
+      const bhkMatch = text.match(/(\d)\s*BHK/i);
+
+      return {
+        id: `99a-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+        title: r.title?.replace(/ - 99acres\.com$/, "") ?? "",
+        description: text.slice(0, 1000),
+        price: priceMatch?.[0] ?? "",
+        location: city,
+        area: city,
+        propertyType: bhkMatch ? `${bhkMatch[1]}BHK` : "",
+        sellerName: "99acres Listing",
+        sellerContact: null,
+        url: r.url,
+        postedDate: new Date().toISOString(),
+        sqft: sqftMatch ? parseInt(sqftMatch[1].replace(/,/g, "")) : null,
+        bedrooms: bhkMatch ? parseInt(bhkMatch[1]) : null,
+      };
+    });
 }

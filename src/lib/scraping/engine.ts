@@ -1,5 +1,7 @@
 import { searchSubreddit } from "@/lib/scraping/reddit";
 import { detectIntentFast, type DetectedIntent } from "@/lib/ai/intent-detector";
+import { matchLeadToProperties } from "@/lib/ai/property-matcher";
+import { scoreLead } from "@/lib/ai/lead-scorer";
 import { db } from "@/lib/db";
 import { getPropertyContext, enrichKeywords } from "./property-context";
 import {
@@ -266,8 +268,6 @@ export async function runSingleSource(orgId: string, sourceId: string) {
  * Called separately from scraping to stay within timeout.
  */
 export async function scoreAllLeads(orgId: string) {
-  const { matchLeadToProperties } = await import("@/lib/ai/property-matcher");
-  const { scoreLead } = await import("@/lib/ai/lead-scorer");
   const startTime = Date.now();
 
   const [unscoredLeads, properties] = await Promise.all([

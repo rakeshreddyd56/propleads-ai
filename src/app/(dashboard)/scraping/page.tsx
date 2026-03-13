@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Globe, Play, Plus, Loader2, Trash2, Zap } from "lucide-react";
+import { Globe, Play, Plus, Loader2, Trash2, Zap, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const platformConfig: Record<string, { label: string; icon: string; requiresApify: boolean; description: string }> = {
-  REDDIT: { label: "Reddit", icon: "🔴", requiresApify: false, description: "Public JSON endpoints, no API key needed" },
+  REDDIT: { label: "Reddit", icon: "🔴", requiresApify: false, description: "Public posts via Firecrawl web search" },
   FACEBOOK: { label: "Facebook", icon: "📘", requiresApify: true, description: "Facebook Groups via Apify" },
   TWITTER: { label: "X / Twitter", icon: "🐦", requiresApify: true, description: "Tweet search via Apify" },
   QUORA: { label: "Quora", icon: "❓", requiresApify: true, description: "Property Q&A via Apify" },
@@ -33,7 +34,8 @@ const platformOptions = Object.keys(platformConfig);
 export default function ScrapingPage() {
   const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [triggering, setTriggering] = useState(false);
+  const [runningAll, setRunningAll] = useState(false);
+  const [runningSources, setRunningSources] = useState<Set<string>>(new Set());
   const [scoring, setScoring] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newSource, setNewSource] = useState({ platform: "", identifier: "", displayName: "", keywords: "" });
@@ -45,40 +47,50 @@ export default function ScrapingPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function scoreLeads() {
-    setScoring(true);
+  async function refreshSources() {
+    const res = await fetch("/api/scraping/sources");
+    if (res.ok) setSources(await res.json());
+  }
+
+  async function runSource(sourceId: string, sourceName: string) {
+    setRunningSources((prev) => new Set([...prev, sourceId]));
     try {
-      const res = await fetch("/api/leads/score-all", { method: "POST" });
+      const res = await fetch("/api/scraping/run-source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceId }),
+      });
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? "Scoring failed");
-        return;
+      if (data.error) {
+        toast.error(`${sourceName}: ${data.error}`);
+      } else if (data.leadsFound > 0) {
+        toast.success(`${sourceName}: ${data.leadsFound} leads from ${data.postsScanned} posts`);
+      } else {
+        toast.info(`${sourceName}: ${data.postsScanned} posts scanned, no new leads`);
       }
-      toast.success(`Scored ${data.scored} leads, matched ${data.matched}${data.remaining > 0 ? ` (${data.remaining} remaining)` : ""}`);
+      await refreshSources();
     } catch {
-      toast.error("Failed to score leads");
+      toast.error(`${sourceName}: Failed`);
     } finally {
-      setScoring(false);
+      setRunningSources((prev) => { const n = new Set(prev); n.delete(sourceId); return n; });
     }
   }
 
-  async function triggerScrape() {
-    setTriggering(true);
+  async function runAll() {
+    setRunningAll(true);
     const activeSources = sources.filter((s) => s.isActive);
     if (activeSources.length === 0) {
-      toast.error("No active sources to scrape");
-      setTriggering(false);
+      toast.error("No active sources");
+      setRunningAll(false);
       return;
     }
 
     let totalLeads = 0;
     let succeeded = 0;
-    let failed = 0;
 
-    // Process each source one by one — each gets its own 60s API call
     for (const source of activeSources) {
       const config = platformConfig[source.platform];
-      toast.info(`Scraping ${config?.icon ?? ""} ${source.displayName}...`);
+      setRunningSources((prev) => new Set([...prev, source.id]));
 
       try {
         const res = await fetch("/api/scraping/run-source", {
@@ -87,38 +99,32 @@ export default function ScrapingPage() {
           body: JSON.stringify({ sourceId: source.id }),
         });
         const data = await res.json();
-
-        if (data.error) {
-          failed++;
-          // Don't spam toast for expected Apify errors
-          if (!data.error.includes("APIFY_API_TOKEN")) {
-            toast.error(`${source.displayName}: ${data.error}`);
-          }
-        } else {
+        if (!data.error) {
           totalLeads += data.leadsFound ?? 0;
           succeeded++;
           if (data.leadsFound > 0) {
-            toast.success(`${config?.icon ?? ""} ${source.displayName}: ${data.leadsFound} leads found`);
+            toast.success(`${config?.icon} ${source.displayName}: ${data.leadsFound} leads`);
           }
         }
-      } catch {
-        failed++;
-      }
+      } catch {}
+
+      setRunningSources((prev) => { const n = new Set(prev); n.delete(source.id); return n; });
     }
 
-    // Final summary
-    if (totalLeads > 0) {
-      toast.success(`Done! ${totalLeads} leads from ${succeeded} sources`);
-    } else if (succeeded > 0) {
-      toast.info(`Scraped ${succeeded} sources — no new leads found`);
-    } else {
-      toast.error("All sources failed");
-    }
+    toast.success(`Done! ${totalLeads} leads from ${succeeded} sources`);
+    await refreshSources();
+    setRunningAll(false);
+  }
 
-    // Refresh sources list
-    const sourcesRes = await fetch("/api/scraping/sources");
-    if (sourcesRes.ok) setSources(await sourcesRes.json());
-    setTriggering(false);
+  async function scoreLeads() {
+    setScoring(true);
+    try {
+      const res = await fetch("/api/leads/score-all", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error ?? "Scoring failed"); return; }
+      toast.success(`Scored ${data.scored}, matched ${data.matched}${data.remaining > 0 ? ` (${data.remaining} remaining — click again)` : ""}`);
+    } catch { toast.error("Scoring failed"); }
+    finally { setScoring(false); }
   }
 
   async function toggleSource(id: string, isActive: boolean) {
@@ -129,9 +135,7 @@ export default function ScrapingPage() {
         body: JSON.stringify({ isActive: !isActive }),
       });
       setSources((prev) => prev.map((s) => (s.id === id ? { ...s, isActive: !isActive } : s)));
-    } catch {
-      toast.error("Failed to toggle source");
-    }
+    } catch { toast.error("Failed to toggle"); }
   }
 
   async function deleteSource(id: string) {
@@ -139,9 +143,7 @@ export default function ScrapingPage() {
       await fetch(`/api/scraping/sources/${id}`, { method: "DELETE" });
       setSources((prev) => prev.filter((s) => s.id !== id));
       toast.success("Source removed");
-    } catch {
-      toast.error("Failed to delete source");
-    }
+    } catch { toast.error("Failed to delete"); }
   }
 
   async function addSource() {
@@ -151,10 +153,7 @@ export default function ScrapingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newSource,
-          keywords: newSource.keywords
-            .split(",")
-            .map((k) => k.trim())
-            .filter(Boolean),
+          keywords: newSource.keywords.split(",").map((k) => k.trim()).filter(Boolean),
         }),
       });
       if (res.ok) {
@@ -164,35 +163,36 @@ export default function ScrapingPage() {
         setNewSource({ platform: "", identifier: "", displayName: "", keywords: "" });
         toast.success("Source added!");
       }
-    } catch {
-      toast.error("Failed to add source");
-    }
+    } catch { toast.error("Failed to add"); }
   }
 
-  // Group sources by category
   const grouped = {
     social: sources.filter((s) => ["REDDIT", "FACEBOOK", "TWITTER", "INSTAGRAM", "LINKEDIN", "TELEGRAM"].includes(s.platform)),
     portals: sources.filter((s) => ["NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER", "COMMONFLOOR"].includes(s.platform)),
     other: sources.filter((s) => ["GOOGLE_MAPS", "YOUTUBE", "QUORA"].includes(s.platform)),
   };
 
+  const totalLeads = sources.reduce((sum, s) => sum + (s.lastRunLeads ?? 0), 0);
+  const activeSources = sources.filter((s) => s.isActive).length;
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Lead Sources</h1>
           <p className="text-sm text-zinc-500">
-            {sources.length} sources across {new Set(sources.map((s: any) => s.platform)).size} platforms
+            {activeSources} active / {sources.length} total sources · {totalLeads} leads last run
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={triggerScrape} disabled={triggering}>
-            {triggering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-            {triggering ? "Scraping..." : "Run All Now"}
+          <Button variant="outline" onClick={runAll} disabled={runningAll}>
+            {runningAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            {runningAll ? "Running..." : "Run All Sources"}
           </Button>
           <Button variant="outline" onClick={scoreLeads} disabled={scoring}>
             {scoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-            {scoring ? "Scoring..." : "Score & Match Leads"}
+            {scoring ? "Scoring..." : "Score & Match"}
           </Button>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger render={<Button />}>
@@ -224,31 +224,20 @@ export default function ScrapingPage() {
                 </div>
                 <div>
                   <Label>Identifier</Label>
-                  <Input
-                    placeholder="e.g., hyderabad (subreddit), group ID, search query"
-                    value={newSource.identifier}
-                    onChange={(e) => setNewSource((p) => ({ ...p, identifier: e.target.value }))}
-                  />
+                  <Input placeholder="e.g., hyderabad (subreddit), group ID" value={newSource.identifier}
+                    onChange={(e) => setNewSource((p) => ({ ...p, identifier: e.target.value }))} />
                 </div>
                 <div>
                   <Label>Display Name</Label>
-                  <Input
-                    placeholder="e.g., r/hyderabad, 99acres Hyderabad"
-                    value={newSource.displayName}
-                    onChange={(e) => setNewSource((p) => ({ ...p, displayName: e.target.value }))}
-                  />
+                  <Input placeholder="e.g., r/hyderabad, 99acres Hyderabad" value={newSource.displayName}
+                    onChange={(e) => setNewSource((p) => ({ ...p, displayName: e.target.value }))} />
                 </div>
                 <div>
                   <Label>Keywords (comma-separated)</Label>
-                  <Input
-                    placeholder="flat, apartment, 2BHK, property, gachibowli"
-                    value={newSource.keywords}
-                    onChange={(e) => setNewSource((p) => ({ ...p, keywords: e.target.value }))}
-                  />
+                  <Input placeholder="flat, apartment, 2BHK, property, gachibowli" value={newSource.keywords}
+                    onChange={(e) => setNewSource((p) => ({ ...p, keywords: e.target.value }))} />
                 </div>
-                <Button onClick={addSource} className="w-full">
-                  Add Source
-                </Button>
+                <Button onClick={addSource} className="w-full">Add Source</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -267,68 +256,45 @@ export default function ScrapingPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Social & Forums */}
-          {grouped.social.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3">Social Media & Forums</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {grouped.social.map((s) => (
+          {[
+            { title: "Social Media & Forums", sources: grouped.social },
+            { title: "Real Estate Portals", sources: grouped.portals },
+            { title: "Other Sources", sources: grouped.other },
+          ].filter((g) => g.sources.length > 0).map((group) => (
+            <section key={group.title}>
+              <h2 className="text-lg font-semibold mb-3">{group.title}</h2>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {group.sources.map((s) => (
                   <SourceCard
                     key={s.id}
                     source={s}
+                    isRunning={runningSources.has(s.id)}
+                    onRun={() => runSource(s.id, s.displayName)}
                     onToggle={() => toggleSource(s.id, s.isActive)}
                     onDelete={() => deleteSource(s.id)}
                   />
                 ))}
               </div>
             </section>
-          )}
-
-          {/* Real Estate Portals */}
-          {grouped.portals.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3">Real Estate Portals</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {grouped.portals.map((s) => (
-                  <SourceCard
-                    key={s.id}
-                    source={s}
-                    onToggle={() => toggleSource(s.id, s.isActive)}
-                    onDelete={() => deleteSource(s.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Other Sources */}
-          {grouped.other.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3">Other Sources</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {grouped.other.map((s) => (
-                  <SourceCard
-                    key={s.id}
-                    source={s}
-                    onToggle={() => toggleSource(s.id, s.isActive)}
-                    onDelete={() => deleteSource(s.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function SourceCard({ source: s, onToggle, onDelete }: { source: any; onToggle: () => void; onDelete: () => void }) {
+function SourceCard({
+  source: s, isRunning, onRun, onToggle, onDelete,
+}: {
+  source: any; isRunning: boolean; onRun: () => void; onToggle: () => void; onDelete: () => void;
+}) {
   const config = platformConfig[s.platform];
   const requiresApify = config?.requiresApify ?? false;
+  const lastRun = s.runs?.[0];
+  const lastStatus = lastRun?.status;
 
   return (
-    <Card className={!s.isActive ? "opacity-60" : ""}>
+    <Card className={cn("transition-all", !s.isActive && "opacity-50", isRunning && "ring-2 ring-blue-400")}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -336,22 +302,29 @@ function SourceCard({ source: s, onToggle, onDelete }: { source: any; onToggle: 
             <CardTitle className="text-base truncate">{s.displayName}</CardTitle>
           </div>
           <div className="flex items-center gap-1.5 mt-1">
-            <Badge variant="outline" className="text-[10px]">
-              {config?.label ?? s.platform}
-            </Badge>
-            {requiresApify && (
-              <Badge variant="secondary" className="text-[10px]">
-                Apify
-              </Badge>
+            <Badge variant="outline" className="text-[10px]">{config?.label ?? s.platform}</Badge>
+            {requiresApify && <Badge variant="secondary" className="text-[10px]">Apify</Badge>}
+            {!requiresApify && s.platform === "REDDIT" && <Badge variant="default" className="text-[10px] bg-green-600">Free</Badge>}
+            {!requiresApify && s.platform === "COMMONFLOOR" && <Badge variant="default" className="text-[10px] bg-green-600">Free</Badge>}
+            {lastStatus === "COMPLETED" && (
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
             )}
-            {!requiresApify && s.platform === "REDDIT" && (
-              <Badge variant="default" className="text-[10px] bg-green-600">
-                Free
-              </Badge>
+            {lastStatus === "FAILED" && (
+              <XCircle className="h-3.5 w-3.5 text-red-500" />
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-zinc-400 hover:text-blue-500"
+            onClick={onRun}
+            disabled={isRunning || !s.isActive}
+            title="Run this source"
+          >
+            {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+          </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-red-500" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -360,32 +333,31 @@ function SourceCard({ source: s, onToggle, onDelete }: { source: any; onToggle: 
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex flex-wrap gap-1">
-          {s.keywords?.slice(0, 6).map((k: string) => (
-            <Badge key={k} variant="outline" className="text-xs">
-              {k}
-            </Badge>
+          {s.keywords?.slice(0, 5).map((k: string) => (
+            <Badge key={k} variant="outline" className="text-[10px] px-1.5 py-0">{k}</Badge>
           ))}
-          {(s.keywords?.length ?? 0) > 6 && (
-            <Badge variant="outline" className="text-xs text-zinc-400">
-              +{s.keywords.length - 6}
-            </Badge>
+          {(s.keywords?.length ?? 0) > 5 && (
+            <Badge variant="outline" className="text-[10px] text-zinc-400">+{s.keywords.length - 5}</Badge>
           )}
         </div>
         <div className="flex items-center justify-between text-xs text-zinc-500">
-          <span>Last: {s.lastRunAt ? new Date(s.lastRunAt).toLocaleString() : "Never"}</span>
-          <span>{s.lastRunLeads ?? 0} leads</span>
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            <span>{s.lastRunAt ? new Date(s.lastRunAt).toLocaleString() : "Never run"}</span>
+          </div>
+          <span className="font-medium">{s.lastRunLeads ?? 0} leads</span>
         </div>
         {s.runs?.length > 0 && (
-          <div className="space-y-1">
-            {s.runs.slice(0, 3).map((r: any) => (
-              <div key={r.id} className="flex items-center justify-between text-xs">
-                <span className="text-zinc-400">{new Date(r.startedAt).toLocaleString()}</span>
+          <div className="space-y-1 border-t pt-2">
+            {s.runs.slice(0, 2).map((r: any) => (
+              <div key={r.id} className="flex items-center justify-between text-[11px]">
+                <span className="text-zinc-400">{new Date(r.startedAt).toLocaleDateString()}</span>
                 <div className="flex items-center gap-2">
                   <span>{r.postsScanned} scanned</span>
                   <span className="font-medium">{r.leadsFound} leads</span>
                   <Badge
                     variant={r.status === "COMPLETED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"}
-                    className="text-[10px]"
+                    className="text-[9px] px-1"
                   >
                     {r.status}
                   </Badge>

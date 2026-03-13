@@ -22,7 +22,6 @@
     "@clerk/nextjs": "^7.0.4",
     "@prisma/client": "^6.19.2",
     "@vercel/blob": "^2.3.1",
-    "apify-client": "^2.22.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

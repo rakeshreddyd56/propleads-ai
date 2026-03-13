@@ -1,38 +1,74 @@
-import { ApifyClient } from "apify-client";
+// Apify REST API client — uses fetch instead of apify-client SDK
+// (SDK has dynamic require() that breaks Vercel's Turbopack bundler)
 
-let _client: ApifyClient | null = null;
+const APIFY_BASE = "https://api.apify.com/v2";
 
-function getClient(): ApifyClient {
-  if (!_client) {
-    if (!process.env.APIFY_API_TOKEN) {
-      throw new Error("APIFY_API_TOKEN not configured");
-    }
-    _client = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
-  }
-  return _client;
+function getToken(): string {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) throw new Error("APIFY_API_TOKEN not configured");
+  return token;
 }
 
 export async function runApifyActor(
   actorId: string,
   input: Record<string, any>,
-  timeoutSecs = 300
+  timeoutSecs = 120
 ): Promise<any[]> {
-  const client = getClient();
+  const token = getToken();
 
-  const run = await client.actor(actorId).call(input, {
-    timeout: timeoutSecs,
-    memory: 256,
-  });
+  // Start the actor run
+  const runRes = await fetch(
+    `${APIFY_BASE}/acts/${encodeURIComponent(actorId)}/runs?token=${token}&timeout=${timeoutSecs}&memory=256`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
 
-  if (!run.defaultDatasetId) {
-    throw new Error(`Apify actor ${actorId} produced no dataset`);
+  if (!runRes.ok) {
+    const err = await runRes.text();
+    throw new Error(`Apify actor ${actorId} failed to start: ${runRes.status} ${err}`);
   }
 
-  const { items } = await client
-    .dataset(run.defaultDatasetId)
-    .listItems({ limit: 100 });
+  const run = await runRes.json();
+  const runId = run.data?.id;
+  if (!runId) throw new Error(`Apify actor ${actorId} returned no run ID`);
 
-  return items;
+  // Wait for the run to finish (poll every 3s, max timeoutSecs)
+  const startTime = Date.now();
+  let status = run.data?.status;
+
+  while (status === "RUNNING" || status === "READY") {
+    if (Date.now() - startTime > timeoutSecs * 1000) {
+      throw new Error(`Apify actor ${actorId} timed out after ${timeoutSecs}s`);
+    }
+
+    await new Promise((r) => setTimeout(r, 3000));
+
+    const statusRes = await fetch(`${APIFY_BASE}/actor-runs/${runId}?token=${token}`);
+    if (!statusRes.ok) break;
+    const statusData = await statusRes.json();
+    status = statusData.data?.status;
+  }
+
+  if (status !== "SUCCEEDED") {
+    throw new Error(`Apify actor ${actorId} ended with status: ${status}`);
+  }
+
+  // Fetch dataset items
+  const datasetId = run.data?.defaultDatasetId;
+  if (!datasetId) throw new Error(`Apify actor ${actorId} produced no dataset`);
+
+  const dataRes = await fetch(
+    `${APIFY_BASE}/datasets/${datasetId}/items?token=${token}&limit=100&format=json`
+  );
+
+  if (!dataRes.ok) {
+    throw new Error(`Failed to fetch Apify dataset: ${dataRes.status}`);
+  }
+
+  return dataRes.json();
 }
 
 // Updated actor IDs based on latest Apify marketplace (2026)

@@ -29,11 +29,11 @@ export const TIER_FEATURES: Record<PlanTier, string[]> = {
   STARTER: ["intent_detection", "manual_score"],
   GROWTH: [
     "intent_detection", "manual_score", "auto_score",
-    "notifications", "ai_matching",
+    "notifications", "ai_matching", "serpapi_search",
   ],
   PRO: [
     "intent_detection", "manual_score", "auto_score",
-    "notifications", "ai_matching",
+    "notifications", "ai_matching", "serpapi_search",
     "cross_platform_dedup", "contact_enrichment", "daily_digest",
   ],
 };

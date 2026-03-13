@@ -130,8 +130,11 @@ model Lead {
   scoreBreakdown  Json?
   tier            LeadTier @default(COLD)
 
+  company         String?
+  jobTitle        String?
   enrichedData    Json?
   enrichedAt      DateTime?
+  enrichmentSource String?
 
   lastSeenAt      DateTime?
   source          String?

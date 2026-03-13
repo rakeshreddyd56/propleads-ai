@@ -8,6 +8,7 @@ import { filterNewPosts } from "./dedup";
 import { markSourceCompleted, markSourceErrored } from "./run-group";
 import { isPlatformAllowed, hasFeature, getRequiredTier, type PlanTier } from "./tiers";
 import { notifyIfHotLead } from "@/lib/notifications/hot-lead";
+import { enrichLead } from "@/lib/enrichment";
 import {
   scrapeFacebookGroup,
   scrape99Acres,
@@ -347,6 +348,13 @@ async function autoScoreAndNotify(orgId: string, leadId: string, tier: PlanTier)
       source: lead.source, originalText: lead.originalText,
       score: scoreResult.total, tier: scoreResult.tier,
     });
+
+    // Pro tier: auto-enrich HOT leads with contact info
+    if (scoreResult.tier === "HOT" && hasFeature(tier, "contact_enrichment")) {
+      enrichLead(lead.id).catch((e) =>
+        console.warn(`Auto-enrichment failed for lead ${lead.id}:`, e)
+      );
+    }
   } catch (e) {
     console.error(`Auto-score error for lead ${leadId}:`, e);
   }

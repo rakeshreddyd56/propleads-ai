@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoreBadge } from "./score-badge";
-import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2 } from "lucide-react";
+import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export function LeadDetail({ lead }: { lead: any }) {
   const [scoring, setScoring] = useState(false);
   const [matching, setMatching] = useState(false);
+  const [enriching, setEnriching] = useState(false);
 
   async function rescore() {
     setScoring(true);
@@ -29,6 +30,25 @@ export function LeadDetail({ lead }: { lead: any }) {
       if (res.ok) toast.success("Properties matched!");
     } catch { toast.error("Matching failed"); }
     finally { setMatching(false); }
+  }
+
+  async function enrichContact() {
+    setEnriching(true);
+    try {
+      const res = await fetch("/api/leads/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: lead.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const found = [data.email && "email", data.phone && "phone", data.company && "company"].filter(Boolean);
+        toast.success(found.length > 0 ? `Found: ${found.join(", ")}` : "No new contact info found");
+      } else {
+        toast.error(data.error ?? "Enrichment failed");
+      }
+    } catch { toast.error("Enrichment failed"); }
+    finally { setEnriching(false); }
   }
 
   return (
@@ -62,6 +82,9 @@ export function LeadDetail({ lead }: { lead: any }) {
         {lead.email && (
           <Button size="sm" variant="outline"><Mail className="mr-1 h-3 w-3" /> Email</Button>
         )}
+        <Button size="sm" variant="outline" onClick={enrichContact} disabled={enriching}>
+          {enriching ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />} Enrich Contact
+        </Button>
         <Button size="sm"><MessageSquare className="mr-1 h-3 w-3" /> AI Coach</Button>
       </div>
 
@@ -160,15 +183,68 @@ export function LeadDetail({ lead }: { lead: any }) {
           ))}
         </TabsContent>
 
-        <TabsContent value="enriched" className="mt-4">
-          {lead.enrichedData ? (
-            <Card>
-              <CardContent className="p-4">
-                <pre className="text-xs overflow-auto max-h-80">{JSON.stringify(lead.enrichedData, null, 2)}</pre>
-              </CardContent>
-            </Card>
+        <TabsContent value="enriched" className="mt-4 space-y-4">
+          {lead.enrichedAt ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                {lead.email && (
+                  <Card>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <Mail className="h-5 w-5 text-blue-500" />
+                      <div>
+                        <p className="text-xs text-zinc-500">Email</p>
+                        <p className="font-medium text-sm">{lead.email}</p>
+                        {(lead.enrichedData as any)?.emailVerified && (
+                          <span className="text-xs text-green-600 flex items-center gap-0.5"><CheckCircle className="h-3 w-3" /> Verified</span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {lead.phone && (
+                  <Card>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <Phone className="h-5 w-5 text-green-500" />
+                      <div>
+                        <p className="text-xs text-zinc-500">Phone</p>
+                        <p className="font-medium text-sm">{lead.phone}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {lead.company && (
+                  <Card>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <Building2 className="h-5 w-5 text-purple-500" />
+                      <div>
+                        <p className="text-xs text-zinc-500">Company</p>
+                        <p className="font-medium text-sm">{lead.company}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {lead.jobTitle && (
+                  <Card>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <Briefcase className="h-5 w-5 text-amber-500" />
+                      <div>
+                        <p className="text-xs text-zinc-500">Job Title</p>
+                        <p className="font-medium text-sm">{lead.jobTitle}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400">
+                Enriched {new Date(lead.enrichedAt).toLocaleDateString()} via {lead.enrichmentSource ?? "auto"}
+              </p>
+            </>
           ) : (
-            <p className="text-sm text-zinc-400">Not enriched yet.</p>
+            <div className="text-center py-8">
+              <Sparkles className="mx-auto h-8 w-8 text-zinc-300 mb-2" />
+              <p className="text-sm text-zinc-500">Not enriched yet</p>
+              <p className="text-xs text-zinc-400 mt-1">Click "Enrich Contact" to find email, phone, and company info</p>
+            </div>
           )}
         </TabsContent>
       </Tabs>

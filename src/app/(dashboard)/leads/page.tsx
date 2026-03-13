@@ -144,7 +144,7 @@ export default function LeadsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div data-tour="leads-header" className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm text-zinc-500">{total} leads found across all sources</p>
@@ -161,7 +161,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="flex gap-3">
+      <div data-tour="tier-filters" className="flex gap-3">
         {(["HOT", "WARM", "COLD"] as const).map((t) => {
           const { bg, text } = tierConfig(t);
           const icons = { HOT: Flame, WARM: Sun, COLD: Snowflake };
@@ -182,7 +182,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div data-tour="lead-search" className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
           <Input placeholder="Search leads..."
@@ -218,7 +218,7 @@ export default function LeadsPage() {
           <p className="text-sm text-zinc-400 mt-1">Run scraping from the Sources page to discover leads</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div data-tour="lead-list" className="space-y-3">
           {leads.map((lead) => {
             const pm = platformMeta[lead.platform] ?? { label: lead.platform, icon: "🌐", color: "bg-zinc-100 text-zinc-700" };
             const tc = tierConfig(lead.tier);

@@ -21,7 +21,7 @@ export default async function PropertiesPage() {
           <h1 className="text-2xl font-bold">Properties</h1>
           <p className="text-sm text-zinc-500">{properties.length} properties in your portfolio</p>
         </div>
-        <UploadDialog />
+        <div data-tour="upload-property"><UploadDialog /></div>
       </div>
 
       {properties.length === 0 ? (
@@ -31,7 +31,7 @@ export default async function PropertiesPage() {
           <p className="text-sm text-zinc-400">Upload a brochure to get started</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div data-tour="property-grid" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {properties.map((p) => (
             <PropertyCard key={p.id} property={p} matchCount={p._count.matches} />
           ))}

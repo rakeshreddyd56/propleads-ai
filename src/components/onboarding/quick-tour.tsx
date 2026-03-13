@@ -1,186 +1,722 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
-  Upload,
-  Globe,
-  Brain,
-  MessageSquare,
-  BarChart3,
-  GraduationCap,
-  ChevronRight,
-  ChevronLeft,
-  X,
-  Sparkles,
+  X, ChevronRight, ChevronLeft, Play, RotateCcw,
+  LayoutDashboard, Building2, Users, Globe, Send,
+  MessageSquare, BarChart3, MapPin, Settings,
+  Upload, Brain, Sparkles, Target, Search, Bell,
+  Zap, Flame, Sun, Snowflake, Phone, Mail, Link2,
+  GraduationCap, RefreshCw, Plus, Shield, Crown,
+  Rocket, Gauge, Activity, BookOpen,
 } from "lucide-react";
 
-const tourSteps = [
+// ─── Tour Section & Step Definitions ─────────────────────────────────────────
+
+interface TourStep {
+  id: string;
+  title: string;
+  description: string;
+  tip?: string;
+  selector?: string; // CSS selector to highlight
+}
+
+interface TourSection {
+  id: string;
+  title: string;
+  icon: any;
+  color: string;
+  bgColor: string;
+  page: string; // route to navigate to
+  steps: TourStep[];
+}
+
+const tourSections: TourSection[] = [
+  // ── 1. DASHBOARD ──
   {
-    icon: Upload,
-    title: "Upload Properties",
-    description:
-      "Start by uploading your property brochures (PDF/images). Our AI extracts all details — builder name, unit types, pricing, amenities, RERA numbers — in seconds. No manual data entry needed.",
-    action: "Go to Properties",
-    href: "/properties",
+    id: "dashboard",
+    title: "Dashboard",
+    icon: LayoutDashboard,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
+    page: "/dashboard",
+    steps: [
+      {
+        id: "welcome",
+        title: "Welcome to PropLeads AI",
+        description: "PropLeads is your AI-powered real estate lead discovery platform for Hyderabad. It monitors 13+ platforms, detects buyer intent using AI, scores leads, matches them to your properties, and helps you reach out — all on autopilot.",
+        tip: "Start by uploading your properties, then configure lead sources. The AI handles the rest.",
+      },
+      {
+        id: "sidebar",
+        title: "Sidebar Navigation",
+        description: "Your main navigation has 9 sections: Dashboard (overview), Properties (your listings), Leads (discovered prospects), Lead Sources (platform config), Outreach (messaging), AI Coach (sales help), Analytics (performance), Market Intel (area data), and Plans & Settings (billing).",
+        selector: "[data-tour='sidebar']",
+        tip: "Each section is a full workflow tool. The sidebar stays visible on all pages.",
+      },
+      {
+        id: "search",
+        title: "Global Search",
+        description: "Search across all your leads and properties instantly. Type a name, area, platform, or keyword to find matching records. Results update as you type.",
+        selector: "[data-tour='search']",
+      },
+      {
+        id: "notifications",
+        title: "Notifications",
+        description: "The bell icon shows unread alerts — primarily hot lead notifications. When a lead scores above the HOT threshold, you get notified here, via Slack, and via email (if configured in Settings).",
+        selector: "[data-tour='notifications']",
+      },
+      {
+        id: "kpi-cards",
+        title: "KPI Cards",
+        description: "Six key metrics at a glance: Total Leads (all-time), This Week (new leads in 7 days), Hot Leads (high-intent buyers), Properties (active listings), Contact Rate (% of leads you've contacted), and Conversion Rate (% that converted to deals).",
+        selector: "[data-tour='kpi-cards']",
+        tip: "Hot Leads is the most important metric — these are people actively looking to buy in your areas.",
+      },
+      {
+        id: "recent-leads",
+        title: "Recent Leads",
+        description: "The 10 most recently discovered leads. Each row shows the lead's score (color-coded: red = HOT, orange = WARM, blue = COLD), their name, which platform they came from, and preferred areas. Click any lead to see full details.",
+        selector: "[data-tour='recent-leads']",
+      },
+      {
+        id: "source-chart",
+        title: "Leads by Source",
+        description: "Visual breakdown of which platforms are generating leads. Helps you understand which sources are most productive — Reddit, Facebook, 99acres, Instagram, etc. Use this to decide where to invest more scraping effort.",
+        selector: "[data-tour='source-chart']",
+      },
+      {
+        id: "lead-funnel",
+        title: "Lead Funnel",
+        description: "Tracks your conversion pipeline: NEW → CONTACTED → ENGAGED → SITE_VISIT → NEGOTIATION → CONVERTED. Shows how leads flow through your sales process and where drop-offs happen.",
+        selector: "[data-tour='lead-funnel']",
+      },
+    ],
   },
+
+  // ── 2. PROPERTIES ──
   {
-    icon: Globe,
-    title: "Configure Lead Sources",
-    description:
-      "Set up where to find leads. We monitor 13+ platforms: Reddit, Facebook Groups, 99acres, MagicBricks, NoBroker, Instagram, LinkedIn, YouTube, Quora, Twitter, Google Maps, Telegram, and CommonFloor. Reddit works instantly — no API keys needed.",
-    action: "Go to Sources",
-    href: "/scraping",
-    color: "text-green-500",
-    bgColor: "bg-green-500/10",
-  },
-  {
-    icon: Brain,
-    title: "AI Finds & Qualifies Leads",
-    description:
-      "Our AI reads every post across your configured sources and detects property-buying intent. It extracts budget, preferred areas, property type, timeline, and buyer persona (IT pro, NRI, first-time buyer, investor). Only qualified leads make it to your pipeline.",
-    action: "View Leads",
-    href: "/leads",
+    id: "properties",
+    title: "Properties",
+    icon: Building2,
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
+    page: "/properties",
+    steps: [
+      {
+        id: "properties-overview",
+        title: "Your Property Portfolio",
+        description: "This is where you manage all your real estate listings. Each property has its details — builder name, unit types, pricing, amenities, RERA number, location. The AI uses this data to match incoming leads to the right properties.",
+        tip: "Upload properties FIRST before running scraping — the AI needs your inventory to score and match leads properly.",
+      },
+      {
+        id: "upload-button",
+        title: "Upload Properties",
+        description: "Click 'Upload' to add a new property. You can upload brochure PDFs or images — our AI extracts all details automatically: builder name, unit types (2BHK/3BHK), pricing, amenities, RERA numbers, possession dates. No manual data entry needed.",
+        selector: "[data-tour='upload-property']",
+        tip: "PDF brochures give the best extraction results. You can also manually add properties.",
+      },
+      {
+        id: "property-cards",
+        title: "Property Cards",
+        description: "Each card shows: property name, builder, location (area + city), price range (in Lakhs/Crores), number of matched leads, and RERA number. Click any card to see full details including unit types, amenities, USPs, and all matched leads.",
+        selector: "[data-tour='property-grid']",
+      },
+      {
+        id: "property-matching",
+        title: "How Matching Works",
+        description: "When a lead is discovered, the AI compares their requirements (budget, area, property type) against ALL your properties. It generates a match score (0-100%) with detailed reasoning — budget fit, area match, type compatibility, and persona alignment.",
+        tip: "The more properties you upload, the better the matching accuracy. Add all your active projects.",
+      },
+    ],
   },
+
+  // ── 3. LEAD SOURCES ──
   {
-    icon: Sparkles,
-    title: "Smart Lead-Property Matching",
-    description:
-      "Each lead is automatically matched against your property inventory. The AI scores compatibility based on budget fit, area preference, property type match, and buyer persona. Click any lead to see their best property matches with detailed reasoning.",
-    action: "View Matches",
-    href: "/leads",
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
+    id: "scraping",
+    title: "Lead Sources",
+    icon: Globe,
+    color: "text-green-500",
+    bgColor: "bg-green-500/10",
+    page: "/scraping",
+    steps: [
+      {
+        id: "sources-overview",
+        title: "Configure Lead Sources",
+        description: "This is your command center for lead discovery. You configure WHICH platforms to monitor, WHAT to search for, and WHEN to run. Each 'source' is a specific search query on a specific platform — like monitoring r/hyderabad on Reddit for property-buying posts.",
+        selector: "[data-tour='sources-header']",
+      },
+      {
+        id: "add-source",
+        title: "Add Source Button",
+        description: "Click '+Add Source' to set up a new monitoring target. You'll pick a platform (13+ options), enter an identifier (subreddit name, Facebook group URL, search query), and add keywords. The system will then regularly check this source for new buyer-intent posts.",
+        selector: "[data-tour='add-source']",
+        tip: "Start with Reddit (free, no API key needed). Then add 99acres, MagicBricks, NoBroker for property portal leads.",
+      },
+      {
+        id: "platforms-explained",
+        title: "Platform Tiers",
+        description: "Platforms are gated by your plan tier:\n• FREE: Reddit only (great for starting out)\n• STARTER: + 99acres, MagicBricks, NoBroker, Facebook, CommonFloor\n• GROWTH: + Instagram, Twitter, YouTube, LinkedIn, Quora, Telegram, Google Maps\n• PRO: All platforms + contact enrichment + daily digest",
+      },
+      {
+        id: "run-all",
+        title: "Run All Sources",
+        description: "The green 'Run All Sources' button triggers scraping across ALL your active sources at once. It creates a 'Run Group' that tracks progress. Each platform is scraped independently — if one fails, others still complete.",
+        selector: "[data-tour='run-all']",
+        tip: "Sources also run automatically via daily cron (6 AM UTC). But you can trigger manual runs anytime.",
+      },
+      {
+        id: "score-match",
+        title: "Score & Match",
+        description: "The 'Score & Match' button re-scores all unscored leads using AI and matches them against your properties. Useful after uploading new properties — existing leads get re-matched to the new inventory.",
+        selector: "[data-tour='score-match']",
+      },
+      {
+        id: "source-cards",
+        title: "Source Cards",
+        description: "Each source card shows: platform + identifier, keywords being searched, last run time, leads found in last run, and run history. The toggle switch enables/disables the source. The play button runs just that one source. The trash button deletes it.",
+        selector: "[data-tour='source-grid']",
+      },
+      {
+        id: "run-history",
+        title: "Run History",
+        description: "Below each source, you can see recent run history: date, posts scanned, leads found, and status (COMPLETED/FAILED). Expand a Run Group to see results from all sources in that batch run.",
+        selector: "[data-tour='run-history']",
+      },
+    ],
   },
+
+  // ── 4. LEADS ──
   {
-    icon: MessageSquare,
-    title: "Personalized Outreach",
-    description:
-      "Generate culturally-aware, persona-specific outreach messages. Our templates handle IT professionals, NRIs, first-time buyers differently — with Vastu mentions, rental yield data, or loan guidance as appropriate. WhatsApp and Email supported.",
-    action: "Outreach Center",
-    href: "/outreach",
+    id: "leads",
+    title: "Leads",
+    icon: Users,
+    color: "text-red-500",
+    bgColor: "bg-red-500/10",
+    page: "/leads",
+    steps: [
+      {
+        id: "leads-overview",
+        title: "Your Lead Pipeline",
+        description: "Every person the AI identifies as a potential property buyer lands here. Each lead has a score (0-100), tier (HOT/WARM/COLD), extracted intent data (budget, areas, timeline), and the original post text. This is your primary workspace for lead management.",
+        selector: "[data-tour='leads-header']",
+      },
+      {
+        id: "tier-filters",
+        title: "Tier Quick Filters",
+        description: "Four filter buttons at the top let you instantly see:\n• HOT (score 70+): High-intent buyers ready to purchase — act fast\n• WARM (score 40-69): Interested but still exploring — nurture these\n• COLD (score <40): Low intent or vague queries — monitor\n• UNSCORED: New leads awaiting AI scoring",
+        selector: "[data-tour='tier-filters']",
+        tip: "Focus your daily effort on HOT leads first. These are people who expressed clear buying intent with specific budget and area preferences.",
+      },
+      {
+        id: "lead-search",
+        title: "Search & Filter",
+        description: "Search by name, original text, or preferred area. The platform dropdown filters by source (Reddit, Facebook, etc.). Combine both for precise filtering — like searching for 'Gachibowli' leads from 'REDDIT' only.",
+        selector: "[data-tour='lead-search']",
+      },
+      {
+        id: "lead-cards",
+        title: "Lead Cards",
+        description: "Each lead card shows: score circle (color = tier), platform badge, lead name, original post preview (2 lines), and extracted details — budget, property type, preferred areas, timeline, buyer persona, and best match %. Click any card to open the full lead detail page.",
+        selector: "[data-tour='lead-list']",
+      },
+      {
+        id: "lead-detail-actions",
+        title: "Lead Detail — Action Buttons",
+        description: "On a lead's detail page, you have 7 action buttons:\n• Re-score: Recalculate the AI score\n• Match Properties: Find matching properties\n• WhatsApp: Send message (if phone exists)\n• Email: Send email (if email exists)\n• Enrich Contact: Find email/phone/company via Apollo/Hunter\n• Find Duplicates: Link this person across platforms\n• AI Coach: Get coaching for talking to this lead",
+      },
+      {
+        id: "lead-tabs",
+        title: "Lead Detail — Tabs",
+        description: "Four tabs show different data:\n• Intent: Original post, budget, timeline, areas, buyer persona, score breakdown\n• Matches: Properties matched by AI with score % and reasoning\n• Outreach: Communication history (WhatsApp, email, calls)\n• Enriched Data: Contact info found via enrichment (email, phone, company, job title)",
+      },
+      {
+        id: "lead-clustering",
+        title: "Cross-Platform Clustering",
+        description: "When the same person posts on multiple platforms (e.g., Reddit AND Facebook), the 'Find Duplicates' button links them together. You'll see an 'Also seen on' section showing all linked profiles. This prevents duplicate outreach and gives you a fuller picture of the lead.",
+        tip: "Clustering works best after enrichment — when email/phone matches are available, linking accuracy is highest.",
+      },
+    ],
+  },
+
+  // ── 5. OUTREACH ──
+  {
+    id: "outreach",
+    title: "Outreach",
+    icon: Send,
     color: "text-pink-500",
     bgColor: "bg-pink-500/10",
+    page: "/outreach",
+    steps: [
+      {
+        id: "outreach-overview",
+        title: "Outreach Center",
+        description: "Create and manage message templates for contacting leads. Templates support variables (like {{name}}, {{property}}, {{area}}) that get filled in automatically. You can create templates for WhatsApp, Email, and SMS — each tailored to different buyer personas and conversation stages.",
+        selector: "[data-tour='outreach-header']",
+      },
+      {
+        id: "new-template",
+        title: "Create Templates",
+        description: "Click 'New Template' to create a message template. Choose the channel (WhatsApp/Email/SMS), category (First Contact, Brochure Share, Site Visit, Follow-up, Price Update, NRI-specific), write the message body with {{variables}}, and save.",
+        selector: "[data-tour='new-template']",
+        tip: "Create at least 3 templates: a First Contact intro, a Brochure Share follow-up, and a Site Visit invite. These cover the core outreach flow.",
+      },
+      {
+        id: "template-categories",
+        title: "Template Categories",
+        description: "Six categories match your sales workflow:\n• FIRST_CONTACT: Initial outreach to new leads\n• BROCHURE_SHARE: Send property details\n• SITE_VISIT: Invite to visit the property\n• FOLLOW_UP: Re-engage after silence\n• PRICE_UPDATE: Share pricing changes\n• NRI_SPECIFIC: Tailored for overseas buyers (investment focus, rental yields)",
+      },
+      {
+        id: "compliance",
+        title: "Compliance & Opt-in",
+        description: "All outreach respects DPDP Act 2023 and TRAI DND regulations. Leads must have explicit opt-in before receiving WhatsApp messages or emails. The system tracks opt-in status per channel and blocks non-compliant sends.",
+      },
+    ],
   },
+
+  // ── 6. AI COACH ──
   {
+    id: "coach",
+    title: "AI Coach",
     icon: GraduationCap,
-    title: "AI Sales Coach",
-    description:
-      "Paste any conversation with a lead and get AI-powered coaching: objection handling, next-step suggestions, and sentiment analysis. The coach understands Hyderabad's real estate market, Telugu cultural nuances, RERA compliance, and Vastu preferences.",
-    action: "Try Coach",
-    href: "/coach",
     color: "text-teal-500",
     bgColor: "bg-teal-500/10",
+    page: "/coach",
+    steps: [
+      {
+        id: "coach-overview",
+        title: "AI Sales Coaching",
+        description: "Your personal AI sales assistant, trained on Hyderabad real estate. It understands Telugu cultural nuances, Vastu preferences, RERA compliance, NRI investment patterns, IT corridor dynamics, and local micro-market trends.",
+      },
+      {
+        id: "conversation-analysis",
+        title: "Analyze Conversations",
+        description: "Paste any WhatsApp or email conversation with a lead into the analyzer. The AI will assess: sentiment (positive/negative/neutral), buying signals detected, objections identified, and recommended next steps. It also suggests how to handle specific objections.",
+        selector: "[data-tour='coach-analyze']",
+        tip: "Use this after every significant conversation to catch opportunities you might have missed and prepare your next response.",
+      },
+      {
+        id: "message-generator",
+        title: "Message Generator",
+        description: "Generate personalized messages by selecting: buyer persona (IT Professional, NRI, First-time Buyer, etc.), property name, channel (WhatsApp/Email/SMS), and conversation stage (First Contact through Closing). The AI crafts culturally-appropriate, persona-specific messages.",
+        selector: "[data-tour='coach-generate']",
+        tip: "The generator adapts language style per persona — tech-savvy tone for IT professionals, investment-focused for NRIs, hand-holding for first-time buyers.",
+      },
+    ],
   },
+
+  // ── 7. ANALYTICS ──
   {
+    id: "analytics",
+    title: "Analytics",
     icon: BarChart3,
-    title: "Analytics & ROI",
-    description:
-      "Track your conversion funnel from lead discovery to deal closure. See which platforms generate the most qualified leads, cost per lead, and conversion rates by source, area, and buyer persona.",
-    action: "View Analytics",
-    href: "/analytics",
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
+    page: "/analytics",
+    steps: [
+      {
+        id: "analytics-overview",
+        title: "Performance Analytics",
+        description: "Track everything about your lead generation: which platforms work best, how your funnel converts, enrichment success rates, and usage against your plan limits. All data updates in real-time as you scrape and process leads.",
+      },
+      {
+        id: "usage-meters",
+        title: "Usage Meters",
+        description: "Two progress bars show your current usage:\n• Runs Today: How many scraping runs you've used today vs your plan limit\n• Leads This Month: Total new leads this month vs your monthly cap\nWhen either limit is reached, scraping pauses until the next reset.",
+        selector: "[data-tour='usage-meters']",
+        tip: "FREE: 2 runs/day, 50 leads/month. STARTER: 5/200. GROWTH: 10/500. PRO: Unlimited.",
+      },
+      {
+        id: "platform-health",
+        title: "Platform Health",
+        description: "Three critical metrics:\n• Scraping Success Rate: % of scraping runs that complete without errors (should be 80%+)\n• Enrichment Rate: % of leads with enriched contact info (email/phone)\n• Cross-platform Clusters: Number of leads linked across platforms",
+        selector: "[data-tour='platform-health']",
+      },
+      {
+        id: "tier-breakdown",
+        title: "Lead Quality Distribution",
+        description: "Shows the proportion of HOT, WARM, and COLD leads in your pipeline. A healthy distribution has 10-20% HOT leads. If most leads are COLD, review your source configuration and keywords — they may be too broad.",
+        selector: "[data-tour='tier-breakdown']",
+      },
+      {
+        id: "source-performance",
+        title: "Source Performance",
+        description: "Platform-by-platform breakdown showing lead count and average score. Helps identify your best-performing sources. If a platform has high volume but low avg score, its leads are low-quality — consider refining keywords or switching to a more targeted approach.",
+        selector: "[data-tour='source-performance']",
+      },
+    ],
+  },
+
+  // ── 8. MARKET INTEL ──
+  {
+    id: "market",
+    title: "Market Intel",
+    icon: MapPin,
+    color: "text-indigo-500",
+    bgColor: "bg-indigo-500/10",
+    page: "/market",
+    steps: [
+      {
+        id: "market-overview",
+        title: "Hyderabad Market Intelligence",
+        description: "Real-time data on Hyderabad's real estate micro-markets. Shows pricing trends, growth rates, and buyer preferences for each area — Gachibowli, Kondapur, HITEC City, Kokapet, Narsingi, Tellapur, and more.",
+      },
+      {
+        id: "micro-markets",
+        title: "Micro-Market Cards",
+        description: "Each area card shows: price range per sqft (₹X–₹Y), growth percentage, a 'hotness' score, and the dominant buyer persona. Areas are tagged as 'Hot' (score 85+), 'Warm' (70+), or 'Emerging'. Use this to understand where buyer demand is strongest.",
+        selector: "[data-tour='micro-markets']",
+        tip: "Match your property listings to 'Hot' micro-markets for the best lead-to-property match rates.",
+      },
+      {
+        id: "buyer-personas",
+        title: "Buyer Personas",
+        description: "Six buyer segments with their typical budgets and preferred areas:\n• IT Professional: ₹50L-1.5Cr, tech corridors\n• NRI: ₹1Cr+, premium areas\n• First-time Buyer: ₹30-60L, affordable zones\n• Investor: Multiple properties, rental yield focus\n• Luxury Buyer: ₹2Cr+, Jubilee Hills/Banjara Hills\n• Family Upgrader: ₹80L-1.5Cr, established areas",
+        selector: "[data-tour='personas']",
+      },
+    ],
+  },
+
+  // ── 9. PLANS & SETTINGS ──
+  {
+    id: "settings",
+    title: "Plans & Settings",
+    icon: Settings,
+    color: "text-zinc-500",
+    bgColor: "bg-zinc-500/10",
+    page: "/settings/plan",
+    steps: [
+      {
+        id: "plans-overview",
+        title: "Subscription Plans",
+        description: "Four tiers with different capabilities:\n• FREE (₹0): Reddit only, 2 runs/day, 50 leads/month — great for testing\n• STARTER (₹375/mo): Property portals + Facebook, 5 runs/day, 200 leads\n• GROWTH (₹1,750/mo): All social media, auto-scoring, notifications, 500 leads\n• PRO (₹3,000/mo): Everything + enrichment, daily digest, unlimited leads",
+      },
+      {
+        id: "billing-toggle",
+        title: "Monthly vs Annual",
+        description: "Toggle between monthly and annual billing. Annual plans save 20% — for example, GROWTH drops from ₹1,750/mo to ₹1,400/mo when billed annually. Click 'Upgrade' on any plan card to switch tiers.",
+        selector: "[data-tour='billing-toggle']",
+        tip: "Payments are handled via Razorpay. You can use UPI, cards, net banking, or wallets.",
+      },
+      {
+        id: "notifications-config",
+        title: "Hot Lead Notifications",
+        description: "Configure where to receive alerts when a HOT lead is discovered:\n• Slack Webhook URL: Paste your Slack webhook to get notifications in a channel\n• Email: Enter an email address for instant email alerts\nRequires GROWTH plan or above.",
+        selector: "[data-tour='notifications-config']",
+        tip: "Set up Slack notifications for your sales team channel — instant alerts mean faster response times on hot leads.",
+      },
+      {
+        id: "api-settings",
+        title: "API Keys & Settings",
+        description: "The main Settings page shows configured API keys (managed via environment variables on Vercel), compliance status (DPDP Act, TRAI DND, RERA verification), and team management via Clerk. All API keys are set server-side for security.",
+      },
+    ],
   },
 ];
 
-const TOUR_DISMISSED_KEY = "propleads-tour-dismissed";
+// ─── Tour Component ──────────────────────────────────────────────────────────
+
+const TOUR_KEY = "propleads-tour-dismissed";
+const TOUR_PROGRESS_KEY = "propleads-tour-progress";
 
 export function QuickTour() {
-  const [step, setStep] = useState(0);
-  const [dismissed, setDismissed] = useState(true); // default hidden until checked
+  const router = useRouter();
+  const pathname = usePathname();
+  const [dismissed, setDismissed] = useState(true);
+  const [sectionIdx, setSectionIdx] = useState(0);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [expanded, setExpanded] = useState(true);
+  const [navigating, setNavigating] = useState(false);
 
+  // Load state from localStorage
   useEffect(() => {
-    const isDismissed = localStorage.getItem(TOUR_DISMISSED_KEY);
+    const isDismissed = localStorage.getItem(TOUR_KEY);
     if (!isDismissed) setDismissed(false);
+
+    const saved = localStorage.getItem(TOUR_PROGRESS_KEY);
+    if (saved) {
+      try {
+        const { s, t } = JSON.parse(saved);
+        if (s < tourSections.length && t < tourSections[s].steps.length) {
+          setSectionIdx(s);
+          setStepIdx(t);
+        }
+      } catch {}
+    }
   }, []);
 
+  // Save progress
+  useEffect(() => {
+    if (!dismissed) {
+      localStorage.setItem(TOUR_PROGRESS_KEY, JSON.stringify({ s: sectionIdx, t: stepIdx }));
+    }
+  }, [sectionIdx, stepIdx, dismissed]);
+
+  // Highlight target element when step changes
+  useEffect(() => {
+    if (dismissed || !expanded) return;
+
+    const section = tourSections[sectionIdx];
+    const step = section.steps[stepIdx];
+    if (!step.selector) return;
+
+    const el = document.querySelector(step.selector);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("tour-highlight");
+      return () => { el.classList.remove("tour-highlight"); };
+    }
+  }, [sectionIdx, stepIdx, dismissed, expanded, pathname]);
+
+  const section = tourSections[sectionIdx];
+  const step = section.steps[stepIdx];
+  const Icon = section.icon;
+
+  // Total step counting
+  const totalSteps = tourSections.reduce((sum, s) => sum + s.steps.length, 0);
+  const currentGlobalStep = tourSections.slice(0, sectionIdx).reduce((sum, s) => sum + s.steps.length, 0) + stepIdx + 1;
+
+  const navigateToPage = useCallback((page: string) => {
+    if (pathname !== page) {
+      setNavigating(true);
+      router.push(page);
+      setTimeout(() => setNavigating(false), 500);
+    }
+  }, [pathname, router]);
+
+  function goNext() {
+    if (stepIdx < section.steps.length - 1) {
+      setStepIdx(stepIdx + 1);
+    } else if (sectionIdx < tourSections.length - 1) {
+      const nextSection = tourSections[sectionIdx + 1];
+      setSectionIdx(sectionIdx + 1);
+      setStepIdx(0);
+      navigateToPage(nextSection.page);
+    }
+  }
+
+  function goBack() {
+    if (stepIdx > 0) {
+      setStepIdx(stepIdx - 1);
+    } else if (sectionIdx > 0) {
+      const prevSection = tourSections[sectionIdx - 1];
+      setSectionIdx(sectionIdx - 1);
+      setStepIdx(prevSection.steps.length - 1);
+      navigateToPage(prevSection.page);
+    }
+  }
+
+  function jumpToSection(idx: number) {
+    setSectionIdx(idx);
+    setStepIdx(0);
+    navigateToPage(tourSections[idx].page);
+  }
+
   function dismiss() {
-    localStorage.setItem(TOUR_DISMISSED_KEY, "true");
+    localStorage.setItem(TOUR_KEY, "true");
+    localStorage.removeItem(TOUR_PROGRESS_KEY);
     setDismissed(true);
+    // Remove any lingering highlights
+    document.querySelectorAll(".tour-highlight").forEach((el) => el.classList.remove("tour-highlight"));
   }
 
   function resetTour() {
-    localStorage.removeItem(TOUR_DISMISSED_KEY);
+    localStorage.removeItem(TOUR_KEY);
+    localStorage.removeItem(TOUR_PROGRESS_KEY);
     setDismissed(false);
-    setStep(0);
+    setSectionIdx(0);
+    setStepIdx(0);
+    setExpanded(true);
   }
 
+  const isLast = sectionIdx === tourSections.length - 1 && stepIdx === section.steps.length - 1;
+  const isFirst = sectionIdx === 0 && stepIdx === 0;
+
+  // ── Collapsed / Dismissed State ──
   if (dismissed) {
     return (
-      <Button variant="ghost" size="sm" onClick={resetTour} className="text-xs text-zinc-400">
-        Show Platform Tour
-      </Button>
+      <button
+        onClick={resetTour}
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-zinc-800 transition-all dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+      >
+        <BookOpen className="h-4 w-4" />
+        Platform Tour
+      </button>
     );
   }
 
-  const current = tourSteps[step];
-  const Icon = current.icon;
+  // ── Minimized State ──
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-zinc-800 transition-all dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+      >
+        <Play className="h-4 w-4" />
+        Tour {currentGlobalStep}/{totalSteps}
+      </button>
+    );
+  }
 
+  // ── Full Tour Panel ──
   return (
-    <Card className="border-2 border-dashed border-zinc-200 dark:border-zinc-800">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
+    <>
+      {/* CSS for highlight animation */}
+      <style jsx global>{`
+        .tour-highlight {
+          position: relative;
+          z-index: 5;
+          outline: 3px solid #6366f1 !important;
+          outline-offset: 4px;
+          border-radius: 8px;
+          animation: tour-pulse 2s ease-in-out infinite;
+        }
+        @keyframes tour-pulse {
+          0%, 100% { outline-color: #6366f1; }
+          50% { outline-color: #a5b4fc; }
+        }
+      `}</style>
+
+      <div className="fixed bottom-4 right-4 z-50 w-[420px] max-h-[85vh] flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-zinc-500">
-              Quick Tour — Step {step + 1} of {tourSteps.length}
-            </span>
+            <div className={`p-1.5 rounded-lg ${section.bgColor}`}>
+              <Icon className={`h-4 w-4 ${section.color}`} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{section.title}</p>
+              <p className="text-[10px] text-zinc-400">Step {currentGlobalStep} of {totalSteps}</p>
+            </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={dismiss}>
-            <X className="h-4 w-4" />
+          <div className="flex items-center gap-1">
+            <button onClick={() => setExpanded(false)} className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors" title="Minimize">
+              <ChevronRight className="h-4 w-4 text-zinc-400 rotate-90" />
+            </button>
+            <button onClick={dismiss} className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors" title="Close tour">
+              <X className="h-4 w-4 text-zinc-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Section Navigator */}
+        <div className="flex gap-1 px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto no-scrollbar">
+          {tourSections.map((s, i) => {
+            const SIcon = s.icon;
+            const isActive = i === sectionIdx;
+            const isCompleted = i < sectionIdx;
+            return (
+              <button
+                key={s.id}
+                onClick={() => jumpToSection(i)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-all ${
+                  isActive
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : isCompleted
+                      ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                      : "text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                }`}
+                title={s.title}
+              >
+                <SIcon className="h-3 w-3" />
+                {isActive && <span>{s.title}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Step Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{step.title}</h3>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">{step.description}</p>
+
+          {step.tip && (
+            <div className="flex gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+              <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span className="leading-relaxed">{step.tip}</span>
+            </div>
+          )}
+
+          {/* Step dots within section */}
+          <div className="flex items-center gap-1 pt-1">
+            {section.steps.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setStepIdx(i)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === stepIdx ? "w-5 bg-zinc-900 dark:bg-zinc-100" : i < stepIdx ? "w-1.5 bg-green-400" : "w-1.5 bg-zinc-200 dark:bg-zinc-700"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Global progress bar */}
+        <div className="h-1 bg-zinc-100 dark:bg-zinc-800">
+          <div
+            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+            style={{ width: `${(currentGlobalStep / totalSteps) * 100}%` }}
+          />
+        </div>
+
+        {/* Footer Navigation */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 dark:border-zinc-800">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={goBack}
+            disabled={isFirst || navigating}
+            className="text-xs"
+          >
+            <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Back
           </Button>
-        </div>
 
-        <div className="flex items-start gap-4">
-          <div className={`p-3 rounded-xl ${current.bgColor} shrink-0`}>
-            <Icon className={`h-8 w-8 ${current.color}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold mb-1">{current.title}</h3>
-            <p className="text-sm text-zinc-500 leading-relaxed">{current.description}</p>
-          </div>
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex items-center justify-center gap-1.5 mt-5">
-          {tourSteps.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setStep(i)}
-              className={`h-2 rounded-full transition-all ${
-                i === step ? "w-6 bg-zinc-900 dark:bg-zinc-100" : "w-2 bg-zinc-300 dark:bg-zinc-700"
-              }`}
-            />
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between mt-4">
-          <Button variant="ghost" size="sm" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-
-          <a href={current.href}>
-            <Button variant="outline" size="sm">
-              {current.action}
+          {step.selector && pathname === section.page && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                const el = document.querySelector(step.selector!);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+              }}
+            >
+              <Target className="h-3 w-3 mr-1" /> Show
             </Button>
-          </a>
+          )}
 
-          {step < tourSteps.length - 1 ? (
-            <Button variant="ghost" size="sm" onClick={() => setStep(step + 1)}>
-              Next <ChevronRight className="h-4 w-4 ml-1" />
+          {pathname !== section.page && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => navigateToPage(section.page)}
+              disabled={navigating}
+            >
+              Go to {section.title}
+            </Button>
+          )}
+
+          {isLast ? (
+            <Button size="sm" onClick={dismiss} className="text-xs">
+              Finish Tour
             </Button>
           ) : (
-            <Button size="sm" onClick={dismiss}>
-              Got it!
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goNext}
+              disabled={navigating}
+              className="text-xs"
+            >
+              Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
             </Button>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </>
   );
 }

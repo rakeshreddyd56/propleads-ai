@@ -44,13 +44,13 @@ export default function OutreachPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div data-tour="outreach-header" className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Outreach</h1>
           <p className="text-sm text-zinc-500">Manage templates, campaigns, and track outreach</p>
         </div>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger render={<Button />}>
+          <DialogTrigger data-tour="new-template" render={<Button />}>
             <Plus className="mr-2 h-4 w-4" /> New Template
           </DialogTrigger>
           <DialogContent className="max-w-lg">

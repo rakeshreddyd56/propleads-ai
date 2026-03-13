@@ -42,6 +42,7 @@ export default async function DashboardPage() {
 
       <QuickTour />
 
+      <div data-tour="kpi-cards">
       <KPICards kpis={{
         totalLeads,
         leadsThisWeek,
@@ -50,16 +51,17 @@ export default async function DashboardPage() {
         contactRate: totalLeads > 0 ? Math.round((contactedCount / totalLeads) * 100) : 0,
         conversionRate: totalLeads > 0 ? Math.round((convertedCount / totalLeads) * 100) : 0,
       }} />
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <RecentLeads leads={recentLeads} />
-        <SourceChart data={sourceBreakdown.map(s => ({ platform: s.platform, count: s._count }))} />
       </div>
 
-      <LeadFunnel stages={["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED"].map(stage => ({
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div data-tour="recent-leads"><RecentLeads leads={recentLeads} /></div>
+        <div data-tour="source-chart"><SourceChart data={sourceBreakdown.map(s => ({ platform: s.platform, count: s._count }))} /></div>
+      </div>
+
+      <div data-tour="lead-funnel"><LeadFunnel stages={["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED"].map(stage => ({
         stage,
         count: statusBreakdown.find(s => s.status === stage)?._count ?? 0,
-      }))} />
+      }))} /></div>
     </div>
   );
 }

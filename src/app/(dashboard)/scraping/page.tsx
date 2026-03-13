@@ -246,7 +246,7 @@ export default function ScrapingPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div data-tour="sources-header" className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">Lead Sources</h1>
@@ -262,16 +262,16 @@ export default function ScrapingPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={runAll} disabled={runningAll}>
+          <Button data-tour="run-all" variant="outline" onClick={runAll} disabled={runningAll}>
             {runningAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
             {runningAll ? "Running..." : "Run All Sources"}
           </Button>
-          <Button variant="outline" onClick={scoreLeads} disabled={scoring}>
+          <Button data-tour="score-match" variant="outline" onClick={scoreLeads} disabled={scoring}>
             {scoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
             {scoring ? "Scoring..." : "Score & Match"}
           </Button>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger render={<Button />}>
+            <DialogTrigger data-tour="add-source" render={<Button />}>
               <Plus className="mr-2 h-4 w-4" /> Add Source
             </DialogTrigger>
             <DialogContent>
@@ -331,7 +331,7 @@ export default function ScrapingPage() {
           <p className="text-sm text-zinc-400">Sources will be auto-seeded when you reload</p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div data-tour="source-grid" className="space-y-8">
           {[
             { title: "Social Media & Forums", sources: grouped.social },
             { title: "Real Estate Portals", sources: grouped.portals },
@@ -359,7 +359,7 @@ export default function ScrapingPage() {
 
       {/* Run History */}
       {runHistory.length > 0 && (
-        <div className="space-y-3">
+        <div data-tour="run-history" className="space-y-3">
           <h2 className="text-lg font-semibold">Run History</h2>
           {runHistory.map((group: any) => (
             <RunHistoryCard key={group.id} group={group} />

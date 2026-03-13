@@ -15,10 +15,10 @@ export default function CoachPage() {
           <TabsTrigger value="analyze">Analyze Conversation</TabsTrigger>
           <TabsTrigger value="generate">Quick Message</TabsTrigger>
         </TabsList>
-        <TabsContent value="analyze">
+        <TabsContent value="analyze" data-tour="coach-analyze">
           <ChatInterface />
         </TabsContent>
-        <TabsContent value="generate">
+        <TabsContent value="generate" data-tour="coach-generate">
           <MessageGenerator />
         </TabsContent>
       </Tabs>

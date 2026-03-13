@@ -60,7 +60,7 @@ export default function AnalyticsPage() {
       {/* Usage & Plan Meters */}
       {usage && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+          <Card data-tour="usage-meters">
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2">
                 <Gauge className="h-4 w-4 text-blue-500" />
@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-tour="platform-health">
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-purple-500" />
@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
 
       {/* Lead Tier Breakdown */}
       {data?.tierBreakdown && data.tierBreakdown.length > 0 && (
-        <Card>
+        <Card data-tour="tier-breakdown">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Lead Quality Distribution</CardTitle></CardHeader>
           <CardContent>
             <div className="flex gap-4">
@@ -131,7 +131,7 @@ export default function AnalyticsPage() {
         <LeadFunnel stages={funnel} />
       </div>
 
-      <Card>
+      <Card data-tour="source-performance">
         <CardHeader><CardTitle className="text-base">Source Performance</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">

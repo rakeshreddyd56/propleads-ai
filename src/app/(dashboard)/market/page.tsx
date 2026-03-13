@@ -12,7 +12,7 @@ export default function MarketPage() {
         <p className="text-sm text-zinc-500">Hyderabad real estate micro-market data and buyer insights</p>
       </div>
 
-      <div>
+      <div data-tour="micro-markets">
         <h2 className="text-lg font-semibold mb-4">Micro-Markets</h2>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {HYDERABAD_AREAS.sort((a, b) => b.hotness - a.hotness).map((area) => (
@@ -40,7 +40,7 @@ export default function MarketPage() {
         </div>
       </div>
 
-      <div>
+      <div data-tour="personas">
         <h2 className="text-lg font-semibold mb-4">Buyer Personas</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Object.entries(BUYER_PERSONAS).map(([key, persona]) => (

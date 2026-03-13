@@ -24,7 +24,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r bg-white dark:bg-zinc-950">
+    <aside data-tour="sidebar" className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r bg-white dark:bg-zinc-950">
       <div className="flex h-16 items-center gap-2 border-b px-6">
         <Zap className="h-7 w-7 text-orange-500" />
         <span className="text-xl font-bold tracking-tight">PropLeads AI</span>

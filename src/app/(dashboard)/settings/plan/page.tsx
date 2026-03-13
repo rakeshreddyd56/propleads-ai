@@ -92,7 +92,7 @@ export default function PlanSettingsPage() {
       </div>
 
       {/* Billing Toggle */}
-      <div className="flex items-center justify-center gap-3">
+      <div data-tour="billing-toggle" className="flex items-center justify-center gap-3">
         <button onClick={() => setBillingCycle("monthly")}
           className={cn("rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             billingCycle === "monthly" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
@@ -141,7 +141,7 @@ export default function PlanSettingsPage() {
       </div>
 
       {/* Notification Settings */}
-      <Card>
+      <Card data-tour="notifications-config">
         <CardHeader>
           <CardTitle className="text-lg">Hot Lead Notifications</CardTitle>
           <p className="text-xs text-zinc-500">

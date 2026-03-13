@@ -45,10 +45,14 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  // Auto-seed default Reddit sources for new orgs
-  if (sources.length === 0) {
+  // Auto-seed default sources for new orgs, or backfill missing platforms
+  if (sources.length < defaultSources.length) {
     for (const s of defaultSources) {
-      await db.scrapingSource.create({ data: { orgId, ...s } });
+      await db.scrapingSource.upsert({
+        where: { orgId_platform_identifier: { orgId, platform: s.platform, identifier: s.identifier } },
+        update: {},
+        create: { orgId, ...s },
+      });
     }
     sources = await db.scrapingSource.findMany({
       where: { orgId },
@@ -64,9 +68,18 @@ export async function POST(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const data = sourceSchema.parse(body);
+  try {
+    const body = await req.json();
+    const data = sourceSchema.parse(body);
 
-  const source = await db.scrapingSource.create({ data: { orgId, ...data } });
-  return NextResponse.json(source, { status: 201 });
+    const source = await db.scrapingSource.upsert({
+      where: { orgId_platform_identifier: { orgId, platform: data.platform, identifier: data.identifier } },
+      update: { displayName: data.displayName, keywords: data.keywords },
+      create: { orgId, ...data },
+    });
+    return NextResponse.json(source, { status: 201 });
+  } catch (error: any) {
+    console.error("Source create error:", error);
+    return NextResponse.json({ error: error.message ?? "Failed to create source" }, { status: 400 });
+  }
 }

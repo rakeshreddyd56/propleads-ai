@@ -1,5 +1,7 @@
-// Reddit scraper — uses Firecrawl to bypass cloud IP blocks,
-// falls back to direct .json endpoints if Firecrawl unavailable.
+// Reddit scraper — uses Firecrawl web search to find Reddit posts
+// (bypasses Reddit's cloud IP blocking entirely)
+
+import { searchWeb } from "./firecrawl";
 
 export interface RedditPost {
   id: string;
@@ -24,36 +26,32 @@ export async function searchSubreddit(
   keywords: string[],
   limit = 25
 ): Promise<RedditPost[]> {
-  const query = keywords.join(" OR ");
-  const jsonUrl = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(query)}&restrict_sr=on&sort=new&limit=${limit}&t=month`;
-
-  // Strategy 1: Firecrawl (bypasses IP blocks by scraping through residential proxies)
+  // Strategy 1: Firecrawl web search (finds Reddit posts via Google, bypasses blocks)
   if (process.env.FIRECRAWL_API_KEY) {
     try {
-      const posts = await fetchViaFirecrawl(jsonUrl);
+      const posts = await searchViaFirecrawl(subreddit, keywords, limit);
       if (posts.length > 0) return posts;
     } catch (e) {
-      console.warn(`Firecrawl Reddit failed for r/${subreddit}:`, e);
+      console.warn(`Firecrawl search failed for r/${subreddit}:`, e);
     }
   }
 
-  // Strategy 2: Direct fetch (works from residential IPs, local dev, etc.)
+  // Strategy 2: Direct fetch (works from local dev / residential IPs)
   try {
-    return await fetchDirect(jsonUrl);
+    return await fetchDirect(subreddit, keywords, limit);
   } catch (e) {
     console.warn(`Direct Reddit failed for r/${subreddit}:`, e);
   }
 
-  // Strategy 3: Try old.reddit.com (sometimes less aggressively blocked)
+  // Strategy 3: old.reddit.com
   try {
-    const oldUrl = jsonUrl.replace("www.reddit.com", "old.reddit.com");
-    return await fetchDirect(oldUrl);
+    return await fetchDirect(subreddit, keywords, limit, "old.reddit.com");
   } catch (e) {
     console.warn(`old.reddit.com failed for r/${subreddit}:`, e);
   }
 
   throw new Error(
-    `Reddit r/${subreddit}: all methods blocked. Configure FIRECRAWL_API_KEY or APIFY_API_TOKEN for reliable scraping.`
+    `Reddit r/${subreddit}: all methods failed. Ensure FIRECRAWL_API_KEY is set.`
   );
 }
 
@@ -61,74 +59,86 @@ export async function getNewPosts(
   subreddit: string,
   limit = 50
 ): Promise<RedditPost[]> {
-  const jsonUrl = `https://www.reddit.com/r/${subreddit}/new.json?limit=${limit}`;
-
   if (process.env.FIRECRAWL_API_KEY) {
     try {
-      const posts = await fetchViaFirecrawl(jsonUrl);
-      if (posts.length > 0) return posts;
+      return await searchViaFirecrawl(subreddit, [], limit);
     } catch {}
   }
-
-  return fetchDirect(jsonUrl);
+  return fetchDirect(subreddit, [], limit);
 }
 
 /**
- * Fetch Reddit JSON via Firecrawl's scrape endpoint.
- * Firecrawl uses its own infrastructure which has residential IPs.
+ * Use Firecrawl's web search to find Reddit posts.
+ * Searches Google for "site:reddit.com/r/{subreddit} keywords"
+ * and scrapes the results. This completely bypasses Reddit's IP blocks.
  */
-async function fetchViaFirecrawl(jsonUrl: string): Promise<RedditPost[]> {
-  const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`,
-    },
-    body: JSON.stringify({
-      url: jsonUrl,
-      formats: ["rawHtml"],
-      waitFor: 2000,
-    }),
-  });
+async function searchViaFirecrawl(
+  subreddit: string,
+  keywords: string[],
+  limit: number
+): Promise<RedditPost[]> {
+  const keywordStr = keywords.slice(0, 5).join(" ");
+  const query = `site:reddit.com/r/${subreddit} ${keywordStr}`.trim();
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Firecrawl error: ${res.status} ${err}`);
+  const results = await searchWeb(query, Math.min(limit, 10));
+
+  const posts: RedditPost[] = [];
+  for (const result of results) {
+    // Only process actual Reddit post URLs
+    if (!result.url?.includes("reddit.com/r/")) continue;
+
+    const markdown = result.markdown ?? "";
+    const title = result.title?.replace(/ : r\/\w+$/, "")?.replace(/ - Reddit$/, "") ?? "";
+
+    // Extract author from URL or content
+    const authorMatch = markdown.match(/(?:Posted by|submitted by|u\/)(\w+)/i);
+    const author = authorMatch?.[1] ?? "unknown";
+
+    // Extract subreddit from URL
+    const subMatch = result.url.match(/reddit\.com\/r\/(\w+)/);
+    const sub = subMatch?.[1] ?? subreddit;
+
+    // Use markdown content as post text (Firecrawl already extracts clean text)
+    const selftext = markdown
+      .replace(/^#.*\n/gm, "") // Remove markdown headers
+      .replace(/\[.*?\]\(.*?\)/g, "") // Remove links
+      .trim()
+      .slice(0, 3000);
+
+    if (title.length < 5 && selftext.length < 20) continue;
+
+    posts.push({
+      id: `fc-${Buffer.from(result.url).toString("base64").slice(0, 12)}`,
+      title,
+      selftext,
+      author,
+      subreddit: sub,
+      url: result.url,
+      permalink: result.url,
+      score: 0,
+      created_utc: Date.now() / 1000,
+      num_comments: 0,
+    });
   }
 
-  const data = await res.json();
-  const raw = data.data?.rawHtml ?? data.data?.html ?? "";
-
-  // Firecrawl returns the page content — for .json URLs it should be the JSON data
-  try {
-    // Try to parse as JSON directly (if Firecrawl returned raw JSON)
-    const jsonData = JSON.parse(raw);
-    return parseRedditListing(jsonData);
-  } catch {
-    // If Firecrawl wrapped it in HTML, try extracting the JSON from body
-    const jsonMatch = raw.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
-    if (jsonMatch) {
-      try {
-        const jsonData = JSON.parse(jsonMatch[1]);
-        return parseRedditListing(jsonData);
-      } catch {}
-    }
-
-    // Try markdown format as last resort — parse post titles and content
-    const markdown = data.data?.markdown ?? "";
-    if (markdown) {
-      return parseRedditMarkdown(markdown);
-    }
-  }
-
-  return [];
+  return posts;
 }
 
 /**
  * Direct fetch to Reddit .json endpoint.
- * Works from residential IPs but blocked from cloud/datacenter IPs.
+ * Works from residential IPs / local dev but blocked from cloud IPs.
  */
-async function fetchDirect(url: string): Promise<RedditPost[]> {
+async function fetchDirect(
+  subreddit: string,
+  keywords: string[],
+  limit: number,
+  domain = "www.reddit.com"
+): Promise<RedditPost[]> {
+  const query = keywords.join(" OR ");
+  const url = query
+    ? `https://${domain}/r/${subreddit}/search.json?q=${encodeURIComponent(query)}&restrict_sr=on&sort=new&limit=${limit}&t=month`
+    : `https://${domain}/r/${subreddit}/new.json?limit=${limit}`;
+
   const res = await fetch(url, {
     headers: { "User-Agent": USER_AGENT },
   });
@@ -138,14 +148,12 @@ async function fetchDirect(url: string): Promise<RedditPost[]> {
       await delay(3000);
       const retry = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
       if (!retry.ok) throw new Error(`Reddit rate limited: ${retry.status}`);
-      const data = await retry.json();
-      return parseRedditListing(data);
+      return parseRedditListing(await retry.json());
     }
     throw new Error(`Reddit API error: ${res.status} ${res.statusText}`);
   }
 
-  const data = await res.json();
-  return parseRedditListing(data);
+  return parseRedditListing(await res.json());
 }
 
 function parseRedditListing(data: any): RedditPost[] {
@@ -166,51 +174,4 @@ function parseRedditListing(data: any): RedditPost[] {
       created_utc: c.data.created_utc,
       num_comments: c.data.num_comments,
     }));
-}
-
-/**
- * Parse Reddit posts from Firecrawl markdown output (fallback).
- * When Firecrawl renders the Reddit search page as markdown,
- * we extract post titles and text content.
- */
-function parseRedditMarkdown(markdown: string): RedditPost[] {
-  const posts: RedditPost[] = [];
-  // Match lines that look like Reddit post titles (usually h2/h3 or bold links)
-  const sections = markdown.split(/\n(?=#{1,3}\s|\*\*)/);
-
-  for (const section of sections) {
-    const titleMatch = section.match(/^#{1,3}\s+(.+)|^\*\*(.+)\*\*/);
-    if (!titleMatch) continue;
-
-    const title = (titleMatch[1] ?? titleMatch[2] ?? "").trim();
-    if (title.length < 10) continue;
-
-    // Try to extract author
-    const authorMatch = section.match(/(?:by\s+|u\/)(\w+)/);
-    const author = authorMatch?.[1] ?? "unknown";
-
-    // Try to extract subreddit
-    const subMatch = section.match(/r\/(\w+)/);
-    const subreddit = subMatch?.[1] ?? "";
-
-    const body = section
-      .replace(/^#{1,3}\s+.+\n?/, "")
-      .replace(/^\*\*.+\*\*\n?/, "")
-      .trim();
-
-    posts.push({
-      id: `md-${Buffer.from(title).toString("base64").slice(0, 10)}`,
-      title,
-      selftext: body.slice(0, 2000),
-      author,
-      subreddit,
-      url: "",
-      permalink: "",
-      score: 0,
-      created_utc: Date.now() / 1000,
-      num_comments: 0,
-    });
-  }
-
-  return posts;
 }

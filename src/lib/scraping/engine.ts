@@ -122,11 +122,21 @@ export async function runScraping(orgId: string) {
 /**
  * Fetches posts from any platform and normalizes them to a common format.
  */
+const APIFY_PLATFORMS = [
+  "FACEBOOK", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
+  "GOOGLE_MAPS", "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
+];
+
 async function fetchPosts(
   platform: string,
   identifier: string,
   keywords: string[]
 ): Promise<ScrapedPost[]> {
+  // Check Apify token for platforms that need it
+  if (APIFY_PLATFORMS.includes(platform) && !process.env.APIFY_API_TOKEN) {
+    throw new Error(`${platform} requires APIFY_API_TOKEN. Get one free at apify.com`);
+  }
+
   switch (platform) {
     case "REDDIT": {
       const posts = await searchSubreddit(identifier, keywords, 15);

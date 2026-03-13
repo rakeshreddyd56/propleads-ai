@@ -77,10 +77,16 @@ async function searchViaFirecrawl(
   keywords: string[],
   limit: number
 ): Promise<RedditPost[]> {
-  const keywordStr = keywords.slice(0, 5).join(" ");
-  const query = `site:reddit.com/r/${subreddit} ${keywordStr}`.trim();
+  const keywordStr = keywords.slice(0, 3).join(" OR ");
+  // Try specific subreddit first
+  let query = `site:reddit.com/r/${subreddit} ${keywordStr}`.trim();
+  let results = await searchWeb(query, Math.min(limit, 10));
 
-  const results = await searchWeb(query, Math.min(limit, 10));
+  // If no results, try broader search including subreddit name in keywords
+  if (results.length === 0) {
+    query = `reddit ${subreddit} ${keywordStr} property hyderabad`;
+    results = await searchWeb(query, Math.min(limit, 10));
+  }
 
   const posts: RedditPost[] = [];
   for (const result of results) {

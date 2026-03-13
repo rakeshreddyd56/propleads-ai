@@ -1,5 +1,7 @@
 import { searchSubreddit } from "@/lib/scraping/reddit";
 import { detectIntent, type DetectedIntent } from "@/lib/ai/intent-detector";
+import { matchLeadToProperties } from "@/lib/ai/property-matcher";
+import { scoreLead } from "@/lib/ai/lead-scorer";
 import { db } from "@/lib/db";
 import { getPropertyContext, enrichKeywords } from "./property-context";
 import {
@@ -35,6 +37,11 @@ type SourceResult = {
   error?: string;
 };
 
+const APIFY_PLATFORMS = [
+  "FACEBOOK", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
+  "GOOGLE_MAPS", "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
+];
+
 export async function runScraping(orgId: string) {
   const sources = await db.scrapingSource.findMany({
     where: { orgId, isActive: true },
@@ -42,6 +49,12 @@ export async function runScraping(orgId: string) {
 
   // Get property context to enrich scraping with our inventory data
   const propertyContext = await getPropertyContext(orgId);
+
+  // Load properties once for scoring/matching all leads in this run
+  const properties = await db.property.findMany({
+    where: { orgId, status: "ACTIVE" },
+  });
+  const propertyAreas = [...new Set(properties.map((p) => p.area))];
 
   const results: SourceResult[] = [];
 
@@ -64,7 +77,50 @@ export async function runScraping(orgId: string) {
           const intent = await detectIntent(post.text, source.platform);
           if (!intent.isPropertySeeker || intent.confidence < 0.5) continue;
 
-          await upsertLead(source.orgId, source.platform, post, intent);
+          const lead = await upsertLead(source.orgId, source.platform, post, intent);
+
+          // Auto-score the lead against our properties
+          try {
+            const scoreResult = await scoreLead({
+              originalText: lead.originalText,
+              budget: lead.budget,
+              preferredArea: lead.preferredArea,
+              timeline: lead.timeline,
+              platform: lead.platform,
+              buyerPersona: lead.buyerPersona,
+            }, propertyAreas);
+
+            await db.lead.update({
+              where: { id: lead.id },
+              data: {
+                score: scoreResult.total,
+                scoreBreakdown: scoreResult.breakdown as any,
+                tier: scoreResult.tier,
+              },
+            });
+
+            // Auto-match against properties
+            if (properties.length > 0) {
+              const matches = await matchLeadToProperties(lead, properties);
+              for (const match of matches) {
+                await db.leadPropertyMatch.upsert({
+                  where: { leadId_propertyId: { leadId: lead.id, propertyId: match.propertyId } },
+                  update: { matchScore: match.score, matchReasons: match.reasons, aiSummary: match.aiSummary },
+                  create: {
+                    leadId: lead.id,
+                    propertyId: match.propertyId,
+                    matchScore: match.score,
+                    matchReasons: match.reasons,
+                    aiSummary: match.aiSummary,
+                  },
+                });
+              }
+            }
+          } catch (scoreErr) {
+            console.error(`Score/match error for lead ${lead.id}:`, scoreErr);
+            // Lead is still saved even if scoring fails
+          }
+
           leadsFound++;
         } catch (e) {
           console.error(`Error processing post from ${source.platform}:`, e);
@@ -89,7 +145,7 @@ export async function runScraping(orgId: string) {
 
       results.push({ sourceId: source.id, platform: source.platform, postsScanned, leadsFound });
 
-      // Rate limit between sources (6s for Reddit, 3s for others)
+      // Rate limit between sources
       await delay(source.platform === "REDDIT" ? 6000 : 3000);
     } catch (error: any) {
       await db.scrapingRun.update({
@@ -122,11 +178,6 @@ export async function runScraping(orgId: string) {
 /**
  * Fetches posts from any platform and normalizes them to a common format.
  */
-const APIFY_PLATFORMS = [
-  "FACEBOOK", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
-  "GOOGLE_MAPS", "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
-];
-
 async function fetchPosts(
   platform: string,
   identifier: string,
@@ -161,8 +212,6 @@ async function fetchPosts(
 
     case "NINETY_NINE_ACRES": {
       const listings = await scrape99Acres(identifier, keywords, 20);
-      // For portal listings, the "text" is the listing itself.
-      // Intent detection checks if the poster is a buyer (requirement post) vs seller.
       return listings.map((l) => ({
         text: `${l.title}\n${l.description}\nPrice: ${l.price}\nLocation: ${l.location}\nType: ${l.propertyType}`,
         author: l.sellerName,
@@ -193,7 +242,6 @@ async function fetchPosts(
 
     case "GOOGLE_MAPS": {
       const places = await scrapeGoogleMaps(identifier, "Hyderabad", 15);
-      // Extract reviews as posts — reviews contain buyer signals
       const posts: ScrapedPost[] = [];
       for (const place of places) {
         for (const review of place.reviews) {
@@ -214,7 +262,6 @@ async function fetchPosts(
       const posts = await scrapeInstagram(identifier, keywords, 15);
       const results: ScrapedPost[] = [];
       for (const p of posts) {
-        // Main post
         results.push({
           text: p.text,
           author: p.author,
@@ -222,7 +269,6 @@ async function fetchPosts(
           url: p.url,
           profileUrl: `https://instagram.com/${p.author}`,
         });
-        // Comments as separate leads
         for (const c of p.comments) {
           if (c.text.length > 15) {
             results.push({
@@ -311,6 +357,7 @@ async function fetchPosts(
 
 /**
  * Upserts a lead into the database with AI-detected intent data.
+ * Returns the lead record for scoring/matching.
  */
 async function upsertLead(
   orgId: string,
@@ -320,7 +367,7 @@ async function upsertLead(
 ) {
   const platformUserId = post.authorId || post.author;
 
-  await db.lead.upsert({
+  return db.lead.upsert({
     where: {
       orgId_platform_platformUserId: {
         orgId,

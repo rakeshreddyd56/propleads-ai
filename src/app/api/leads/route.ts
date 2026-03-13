@@ -40,5 +40,20 @@ export async function GET(req: NextRequest) {
     db.lead.count({ where }),
   ]);
 
-  return NextResponse.json({ leads, total, page, limit });
+  // Convert BigInt to Number for JSON serialization
+  const serialized = leads.map((lead) => ({
+    ...lead,
+    budgetMin: lead.budgetMin ? Number(lead.budgetMin) : null,
+    budgetMax: lead.budgetMax ? Number(lead.budgetMax) : null,
+    matches: lead.matches.map((m) => ({
+      ...m,
+      property: {
+        ...m.property,
+        priceMin: m.property.priceMin ? Number(m.property.priceMin) : null,
+        priceMax: m.property.priceMax ? Number(m.property.priceMax) : null,
+      },
+    })),
+  }));
+
+  return NextResponse.json({ leads: serialized, total, page, limit });
 }

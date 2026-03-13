@@ -1,4 +1,4 @@
-import { claudeJSON } from "@/lib/claude";
+import { claudeJSONFast as claudeJSON } from "@/lib/claude";
 
 export interface MatchResult {
   propertyId: string;

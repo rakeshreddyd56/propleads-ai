@@ -304,7 +304,7 @@ export default function OutreachPage() {
               </p>
               <p>
                 Need help crafting the right approach? Visit the{" "}
-                <a href="/ai-coach" className="text-blue-600 underline hover:text-blue-700">
+                <a href="/coach" className="text-blue-600 underline hover:text-blue-700">
                   AI Coach
                 </a>{" "}
                 for conversation playbooks and objection-handling scripts tailored to

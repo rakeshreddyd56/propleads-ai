@@ -86,6 +86,15 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         </Card>
       </div>
 
+      {property.description && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Description</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-sm text-zinc-600 whitespace-pre-line">{property.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-base">Unit Types</CardTitle></CardHeader>
@@ -93,7 +102,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             {(property.unitTypes as any[])?.map((u: any, i: number) => (
               <div key={i} className="flex items-center justify-between rounded-lg border p-3">
                 <span className="font-medium">{u.type}</span>
-                <span className="text-sm text-zinc-500">{u.sizeSqft} sqft</span>
+                <span className="text-sm text-zinc-500">{u.sizeSqft ? `${u.sizeSqft} sqft` : "Size TBD"}</span>
                 <span className="font-medium text-green-600">{u.priceINR ? `₹${(u.priceINR / 100000).toFixed(0)}L` : "Price TBD"}</span>
               </div>
             ))}

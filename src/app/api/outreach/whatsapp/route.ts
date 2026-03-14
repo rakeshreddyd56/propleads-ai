@@ -47,10 +47,15 @@ export async function POST(req: NextRequest) {
       })
     : parameters;
 
+  // Append opt-out instruction to last parameter (or add one) for compliance
+  const finalParameters = Array.isArray(resolvedParameters) && resolvedParameters.length > 0
+    ? [...resolvedParameters.slice(0, -1), `${resolvedParameters[resolvedParameters.length - 1]}\n\nReply STOP to opt out.`]
+    : resolvedParameters;
+
   const result = await sendWhatsAppTemplate({
     phoneNumber: lead.phone,
     templateName,
-    parameters: resolvedParameters,
+    parameters: finalParameters,
     mediaUrl,
   });
 

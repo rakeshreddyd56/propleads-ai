@@ -61,8 +61,8 @@ export function UploadDialog() {
           ...extracted,
           brochureUrl: blobUrl,
           extractedData: extracted,
-          priceMin: extracted.unitTypes?.[0]?.priceINR,
-          priceMax: extracted.unitTypes?.[extracted.unitTypes.length - 1]?.priceINR,
+          priceMin: extracted.unitTypes?.length > 0 ? Math.min(...extracted.unitTypes.map((u: any) => u.priceINR ?? 0)) : null,
+          priceMax: extracted.unitTypes?.length > 0 ? Math.max(...extracted.unitTypes.map((u: any) => u.priceINR ?? 0)) : null,
         }),
       });
       if (res.ok) {
@@ -71,6 +71,9 @@ export function UploadDialog() {
         setExtracted(null);
         setFile(null);
         router.refresh();
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error ?? "Failed to save property");
       }
     } catch {
       toast.error("Failed to save property");

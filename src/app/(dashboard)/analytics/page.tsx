@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
       setData(overview);
       setFunnel(funnelData);
       setSources(sourceData);
-    }).finally(() => setLoading(false));
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-zinc-400" /></div>;
@@ -84,8 +84,8 @@ export default function AnalyticsPage() {
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-zinc-600">Scraping Success Rate</span>
-                <span className={cn("font-bold text-lg", (kpis?.scrapingSuccessRate ?? 100) >= 80 ? "text-green-600" : "text-amber-600")}>
-                  {kpis?.scrapingSuccessRate ?? 100}%
+                <span className={cn("font-bold text-lg", (kpis?.scrapingSuccessRate ?? 0) >= 80 ? "text-green-600" : "text-amber-600")}>
+                  {kpis?.scrapingSuccessRate ?? 0}%
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -114,7 +114,7 @@ export default function AnalyticsPage() {
                 return (
                   <div key={t.tier} className="flex-1 text-center">
                     <div className="h-2 rounded-full bg-zinc-100 mb-2 overflow-hidden">
-                      <div className={cn("h-full rounded-full", colors[t.tier] ?? "bg-zinc-400")} style={{ width: "100%" }} />
+                      <div className={cn("h-full rounded-full", colors[t.tier] ?? "bg-zinc-400")} style={{ width: `${pct}%` }} />
                     </div>
                     <p className="text-lg font-bold">{t.count}</p>
                     <p className="text-xs text-zinc-500">{t.tier} ({pct}%)</p>
@@ -135,15 +135,23 @@ export default function AnalyticsPage() {
         <CardHeader><CardTitle className="text-base">Source Performance</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {sources.map((s: any) => (
+            {sources.map((s: any) => {
+              const platformLabels: Record<string, string> = {
+                REDDIT: "Reddit", FACEBOOK: "Facebook", TWITTER: "X / Twitter", INSTAGRAM: "Instagram",
+                LINKEDIN: "LinkedIn", YOUTUBE: "YouTube", QUORA: "Quora", TELEGRAM: "Telegram",
+                NINETY_NINE_ACRES: "99acres", MAGICBRICKS: "MagicBricks", NOBROKER: "NoBroker",
+                COMMONFLOOR: "CommonFloor", GOOGLE_MAPS: "Google Maps",
+              };
+              return (
               <div key={s.platform} className="flex items-center justify-between rounded-lg border p-3">
-                <span className="font-medium">{s.platform}</span>
+                <span className="font-medium">{platformLabels[s.platform] ?? s.platform}</span>
                 <div className="flex items-center gap-4">
                   <span className="text-sm">{s.count} leads</span>
                   <span className="text-sm text-zinc-500">Avg score: {s.avgScore}</span>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>

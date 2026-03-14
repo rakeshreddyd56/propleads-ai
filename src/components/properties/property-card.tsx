@@ -17,7 +17,7 @@ export function PropertyCard({ property: p, matchCount }: { property: any; match
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <CardTitle className="text-base">{p.name}</CardTitle>
-            <Badge variant={p.status === "ACTIVE" ? "default" : "secondary"}>{p.status}</Badge>
+            <Badge variant={p.status === "ACTIVE" ? "default" : "secondary"}>{p.status === "ACTIVE" ? "Active" : p.status === "SOLD_OUT" ? "Sold Out" : p.status?.replace(/_/g, " ") ?? p.status}</Badge>
           </div>
           {p.builderName && <p className="text-sm text-zinc-500">{p.builderName}</p>}
         </CardHeader>

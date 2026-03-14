@@ -1,9 +1,11 @@
 import { db } from "@/lib/db";
 import { resolveOrg } from "@/lib/auth";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, IndianRupee, Calendar, Shield } from "lucide-react";
+import { PropertyActions } from "@/components/properties/property-actions";
 
 function formatPrice(paise: bigint | null): string {
   if (!paise) return "N/A";
@@ -14,7 +16,7 @@ function formatPrice(paise: bigint | null): string {
 
 export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const orgId = await resolveOrg();
-  if (!orgId) return null;
+  if (!orgId) return <div className="p-6 text-center text-zinc-400">Please create or select an organization to get started.</div>;
 
   const { id } = await params;
   const property = await db.property.findFirst({
@@ -31,7 +33,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <h1 className="text-2xl font-bold">{property.name}</h1>
           {property.builderName && <p className="text-zinc-500">{property.builderName}</p>}
         </div>
-        <Badge variant={property.status === "ACTIVE" ? "default" : "secondary"} className="text-sm">{property.status}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={property.status === "ACTIVE" ? "default" : "secondary"} className="text-sm">{property.status === "ACTIVE" ? "Active" : property.status === "SOLD_OUT" ? "Sold Out" : property.status?.replace(/_/g, " ") ?? property.status}</Badge>
+          <PropertyActions propertyId={property.id} />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -92,7 +97,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <CardHeader><CardTitle className="text-base">Amenities</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1">
-                {property.amenities.map((a, i) => <Badge key={i} variant="secondary" className="text-xs">{a}</Badge>)}
+                {(property.amenities ?? []).map((a, i) => <Badge key={i} variant="secondary" className="text-xs">{a}</Badge>)}
               </div>
             </CardContent>
           </Card>
@@ -100,7 +105,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <CardHeader><CardTitle className="text-base">USPs</CardTitle></CardHeader>
             <CardContent>
               <ul className="list-disc list-inside text-sm space-y-1">
-                {property.usps.map((u, i) => <li key={i}>{u}</li>)}
+                {(property.usps ?? []).map((u, i) => <li key={i}>{u}</li>)}
               </ul>
             </CardContent>
           </Card>
@@ -115,16 +120,16 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           ) : (
             <div className="space-y-2">
               {property.matches.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
+                <Link key={m.id} href={`/leads/${m.lead.id}`} className="flex items-center justify-between rounded-lg border p-3 hover:bg-zinc-50 transition-colors">
                   <div>
                     <p className="font-medium">{m.lead.name ?? "Unknown"}</p>
-                    <p className="text-xs text-zinc-500">{m.lead.platform} · {m.lead.budget ?? "No budget"}</p>
+                    <p className="text-xs text-zinc-500">{({"REDDIT":"Reddit","FACEBOOK":"Facebook","TWITTER":"X / Twitter","INSTAGRAM":"Instagram","LINKEDIN":"LinkedIn","YOUTUBE":"YouTube","QUORA":"Quora","TELEGRAM":"Telegram","NINETY_NINE_ACRES":"99acres","MAGICBRICKS":"MagicBricks","NOBROKER":"NoBroker","COMMONFLOOR":"CommonFloor","GOOGLE_MAPS":"Google Maps"} as Record<string,string>)[m.lead.platform] ?? m.lead.platform} · {m.lead.budget ?? "No budget"}</p>
                     {m.aiSummary && <p className="mt-1 text-xs text-zinc-600">{m.aiSummary}</p>}
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-green-600">{m.matchScore}%</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

@@ -27,7 +27,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }, areas);
 
   await db.lead.update({
-    where: { id },
+    where: { id, orgId },
     data: {
       score: result.total,
       scoreBreakdown: result.breakdown as any,

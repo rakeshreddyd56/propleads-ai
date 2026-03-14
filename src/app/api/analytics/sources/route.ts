@@ -16,7 +16,7 @@ export async function GET() {
   return NextResponse.json(
     breakdown.map((b) => ({
       platform: b.platform,
-      count: b._count,
+      count: Number(b._count),
       avgScore: Math.round(b._avg.score ?? 0),
     }))
   );

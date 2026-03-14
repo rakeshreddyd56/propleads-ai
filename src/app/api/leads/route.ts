@@ -7,12 +7,21 @@ export async function GET(req: NextRequest) {
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
-  const tier = url.searchParams.get("tier") as any;
-  const status = url.searchParams.get("status") as any;
-  const platform = url.searchParams.get("platform") as any;
-  const search = url.searchParams.get("search");
-  const page = parseInt(url.searchParams.get("page") ?? "1");
-  const limit = parseInt(url.searchParams.get("limit") ?? "50");
+  const tierParam = url.searchParams.get("tier");
+  const statusParam = url.searchParams.get("status");
+  const platformParam = url.searchParams.get("platform");
+  const search = url.searchParams.get("search")?.trim().slice(0, 200) ?? null;
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1") || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") ?? "50") || 50));
+
+  // Whitelist allowed enum values to prevent injection
+  const validTiers = ["HOT", "WARM", "COLD"] as const;
+  const validStatuses = ["NEW", "CONTACTED", "ENGAGED", "NURTURE", "SITE_VISIT", "NEGOTIATION", "CONVERTED", "LOST"] as const;
+  const validPlatforms = ["REDDIT", "FACEBOOK", "TWITTER", "QUORA", "GOOGLE_MAPS", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER", "COMMONFLOOR", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "TELEGRAM"] as const;
+
+  const tier = validTiers.includes(tierParam as any) ? tierParam : null;
+  const status = validStatuses.includes(statusParam as any) ? statusParam : null;
+  const platform = validPlatforms.includes(platformParam as any) ? platformParam : null;
 
   const where: any = { orgId };
   if (tier) where.tier = tier;
@@ -47,13 +56,15 @@ export async function GET(req: NextRequest) {
     budgetMax: lead.budgetMax ? Number(lead.budgetMax) : null,
     matches: lead.matches.map((m) => ({
       ...m,
-      property: {
-        ...m.property,
-        priceMin: m.property.priceMin ? Number(m.property.priceMin) : null,
-        priceMax: m.property.priceMax ? Number(m.property.priceMax) : null,
-      },
+      property: m.property
+        ? {
+            ...m.property,
+            priceMin: m.property.priceMin ? Number(m.property.priceMin) : null,
+            priceMax: m.property.priceMax ? Number(m.property.priceMax) : null,
+          }
+        : null,
     })),
   }));
 
-  return NextResponse.json({ leads: serialized, total, page, limit });
+  return NextResponse.json({ leads: serialized, total: Number(total), page, limit });
 }

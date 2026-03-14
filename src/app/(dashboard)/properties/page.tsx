@@ -6,13 +6,20 @@ import { Building2 } from "lucide-react";
 
 export default async function PropertiesPage() {
   const orgId = await resolveOrg();
-  if (!orgId) return null;
+  if (!orgId) return <div className="p-6 text-center text-zinc-400">Please create or select an organization to get started.</div>;
 
-  const properties = await db.property.findMany({
+  const rawProperties = await db.property.findMany({
     where: { orgId },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { matches: true } } },
   });
+
+  // Convert BigInt fields to Number for client component serialization
+  const properties = rawProperties.map((p) => ({
+    ...p,
+    priceMin: p.priceMin ? Number(p.priceMin) : null,
+    priceMax: p.priceMax ? Number(p.priceMax) : null,
+  }));
 
   return (
     <div className="space-y-6">

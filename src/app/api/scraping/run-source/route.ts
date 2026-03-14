@@ -9,8 +9,11 @@ export async function POST(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { sourceId, runGroupId } = await req.json();
-  if (!sourceId) return NextResponse.json({ error: "sourceId required" }, { status: 400 });
+  const body = await req.json();
+  const { sourceId, runGroupId } = body;
+  if (!sourceId || typeof sourceId !== "string") {
+    return NextResponse.json({ error: "sourceId required" }, { status: 400 });
+  }
 
   const org = await db.organization.findUnique({
     where: { id: orgId },

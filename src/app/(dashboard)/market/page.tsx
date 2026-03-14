@@ -33,7 +33,7 @@ export default function MarketPage() {
                   <span className="text-xs text-green-600">{area.growth}% YoY growth</span>
                 </div>
                 <Progress value={area.hotness} className="h-1.5" />
-                <p className="text-xs text-zinc-400">{area.persona.replace(/_/g, " ")}</p>
+                <p className="text-xs text-zinc-400">{area.persona.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()).replace(/\bNri\b/, "NRI").replace(/\bIt\b/, "IT")}</p>
               </CardContent>
             </Card>
           ))}

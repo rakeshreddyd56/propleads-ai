@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { leadId } = body;
-  if (!leadId) {
-    return NextResponse.json({ error: "leadId required" }, { status: 400 });
+  if (!leadId || typeof leadId !== "string") {
+    return NextResponse.json({ error: "leadId required (string)" }, { status: 400 });
   }
 
   const lead = await db.lead.findFirst({ where: { id: leadId, orgId } });
@@ -58,6 +58,10 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+
+  if (!cluster) {
+    return NextResponse.json({ error: "Cluster not found" }, { status: 404 });
+  }
 
   return NextResponse.json({ clustered: true, cluster });
 }

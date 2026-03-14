@@ -88,7 +88,7 @@ const tourSections: TourSection[] = [
       {
         id: "lead-funnel",
         title: "Lead Funnel",
-        description: "Tracks your conversion pipeline: NEW → CONTACTED → ENGAGED → SITE_VISIT → NEGOTIATION → CONVERTED. Shows how leads flow through your sales process and where drop-offs happen.",
+        description: "Tracks your conversion pipeline: New → Contacted → Engaged → Site Visit → Negotiation → Converted. Shows how leads flow through your sales process and where drop-offs happen.",
         selector: "[data-tour='lead-funnel']",
       },
     ],
@@ -251,7 +251,7 @@ const tourSections: TourSection[] = [
       {
         id: "template-categories",
         title: "Template Categories",
-        description: "Six categories match your sales workflow:\n\u2022 FIRST_CONTACT: Initial outreach to new leads\n\u2022 BROCHURE_SHARE: Send property details\n\u2022 SITE_VISIT: Invite to visit the property\n\u2022 FOLLOW_UP: Re-engage after silence\n\u2022 PRICE_UPDATE: Share pricing changes\n\u2022 NRI_SPECIFIC: Tailored for overseas buyers",
+        description: "Six categories match your sales workflow:\n\u2022 First Contact: Initial outreach to new leads\n\u2022 Brochure Share: Send property details\n\u2022 Site Visit: Invite to visit the property\n\u2022 Follow Up: Re-engage after silence\n\u2022 Price Update: Share pricing changes\n\u2022 NRI Specific: Tailored for overseas buyers",
       },
     ],
   },
@@ -363,7 +363,7 @@ const tourSections: TourSection[] = [
       {
         id: "plans-overview",
         title: "Subscription Plans",
-        description: "Four tiers with different capabilities:\n\u2022 FREE: Reddit only, 2 runs/day, 50 leads/month\n\u2022 STARTER (375/mo): Property portals + Facebook, 5 runs/day, 200 leads\n\u2022 GROWTH (1,750/mo): All social media, auto-scoring, notifications, 500 leads\n\u2022 PRO (3,000/mo): Everything + enrichment, daily digest, unlimited leads",
+        description: "Four tiers with different capabilities:\n\u2022 FREE: Reddit only, 2 runs/day, 50 leads/month\n\u2022 STARTER (₹375/mo): Property portals + Facebook, 5 runs/day, 200 leads\n\u2022 GROWTH (₹1,750/mo): All social media, auto-scoring, notifications, 500 leads\n\u2022 PRO (₹3,000/mo): Everything + enrichment, daily digest, unlimited leads",
       },
       {
         id: "billing-toggle",

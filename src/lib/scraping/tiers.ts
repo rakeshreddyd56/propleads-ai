@@ -42,6 +42,7 @@ export const TIER_LEADS_PER_MONTH: Record<PlanTier, number> = {
   FREE: 50, STARTER: 200, GROWTH: 500, PRO: 9999,
 };
 
+// Prices are in paise (1/100 of INR). Divide by 100 for display.
 export const PLAN_PRICING = {
   FREE: { monthly: 0, annual: 0, name: "Free", tagline: "Get started with lead discovery" },
   STARTER: { monthly: 37500, annual: 30000, name: "Starter", tagline: "For brokers & small agents" },

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { runSingleSource } from "@/lib/scraping/engine";
 import { createRunGroup, completeRunGroup, incrementOrgRunCount } from "@/lib/scraping/run-group";
@@ -7,7 +7,17 @@ import { canRunToday, isPlatformAllowed, type PlanTier } from "@/lib/scraping/ti
 export const maxDuration = 60;
 
 // Called by Vercel Cron (vercel.json) — runs scraping for all active orgs
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Verify CRON_SECRET to prevent unauthorized invocations
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error("[Cron] CRON_SECRET not configured");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const orgs = await db.organization.findMany({
       where: { scrapingSources: { some: { isActive: true } } },
@@ -53,6 +63,6 @@ export async function GET() {
 }
 
 // Keep POST for backwards compatibility
-export async function POST() {
-  return GET();
+export async function POST(req: NextRequest) {
+  return GET(req);
 }

@@ -5,7 +5,7 @@ import { LeadDetail } from "@/components/leads/lead-detail";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const orgId = await resolveOrg();
-  if (!orgId) return null;
+  if (!orgId) return <div className="p-6 text-center text-zinc-400">Please create or select an organization to get started.</div>;
 
   const { id } = await params;
   const lead = await db.lead.findFirst({

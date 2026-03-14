@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
 
   // Single lead mode
   const { leadId } = body;
-  if (!leadId) {
-    return NextResponse.json({ error: "leadId required" }, { status: 400 });
+  if (!leadId || typeof leadId !== "string") {
+    return NextResponse.json({ error: "leadId required (string)" }, { status: 400 });
   }
 
   // Verify lead belongs to org

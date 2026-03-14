@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
-  const limit = parseInt(url.searchParams.get("limit") ?? "10");
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") ?? "10") || 10));
 
   const groups = await db.runGroup.findMany({
     where: { orgId },

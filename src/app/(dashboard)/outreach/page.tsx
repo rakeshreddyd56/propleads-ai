@@ -20,7 +20,7 @@ export default function OutreachPage() {
   const [form, setForm] = useState({ name: "", channel: "WHATSAPP", category: "FIRST_CONTACT", subject: "", body: "", variables: "" });
 
   useEffect(() => {
-    fetch("/api/outreach/templates").then(r => r.json()).then(setTemplates).finally(() => setLoading(false));
+    fetch("/api/outreach/templates").then(r => r.json()).then(setTemplates).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   async function createTemplate() {
@@ -78,7 +78,7 @@ export default function OutreachPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {["FIRST_CONTACT", "BROCHURE_SHARE", "SITE_VISIT", "FOLLOW_UP", "PRICE_UPDATE", "NRI_SPECIFIC"].map(c => (
-                        <SelectItem key={c} value={c}>{c.replace(/_/g, " ")}</SelectItem>
+                        <SelectItem key={c} value={c}>{c.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()).replace(/\bNri\b/, "NRI")}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -124,7 +124,7 @@ export default function OutreachPage() {
                       <CardTitle className="text-base">{t.name}</CardTitle>
                       <div className="flex gap-1">
                         <Badge variant="outline">{t.channel}</Badge>
-                        <Badge variant="secondary">{t.category.replace(/_/g, " ")}</Badge>
+                        <Badge variant="secondary">{t.category.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()).replace(/\bNri\b/, "NRI")}</Badge>
                       </div>
                     </div>
                   </CardHeader>

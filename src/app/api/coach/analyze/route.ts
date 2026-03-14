@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { resolveAuth } from "@/lib/auth";
 import { analyzeConversation } from "@/lib/ai/conversation-coach";
 import { db } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await resolveAuth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { orgId, userId } = session;
 
-  const { conversation, leadId } = await req.json();
+  const body = await req.json();
+  const { conversation, leadId } = body;
+
+  if (!conversation || typeof conversation !== "string") {
+    return NextResponse.json({ error: "conversation text is required" }, { status: 400 });
+  }
+
+  // If leadId provided, verify it belongs to the caller's org
+  if (leadId && typeof leadId !== "string") {
+    return NextResponse.json({ error: "leadId must be a string" }, { status: 400 });
+  }
+  if (leadId) {
+    const lead = await db.lead.findFirst({ where: { id: leadId, orgId } });
+    if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  }
+
   const analysis = await analyzeConversation(conversation);
 
   await db.coachSession.create({

@@ -18,22 +18,22 @@ export async function GET() {
   const tier = (org?.planTier ?? "FREE") as PlanTier;
 
   const [
-    totalLeads,
-    leadsThisWeek,
-    leadsThisMonth,
-    hotLeads,
-    warmLeads,
-    totalProperties,
+    rawTotalLeads,
+    rawLeadsThisWeek,
+    rawLeadsThisMonth,
+    rawHotLeads,
+    rawWarmLeads,
+    rawTotalProperties,
     recentLeads,
     sourceBreakdown,
     statusBreakdown,
-    contactedCount,
-    convertedCount,
-    enrichedCount,
-    enrichedThisMonth,
-    clusterCount,
-    scrapingRuns,
-    failedRuns,
+    rawContactedCount,
+    rawConvertedCount,
+    rawEnrichedCount,
+    rawEnrichedThisMonth,
+    rawClusterCount,
+    rawScrapingRuns,
+    rawFailedRuns,
     tierBreakdown,
   ] = await Promise.all([
     db.lead.count({ where: { orgId } }),
@@ -60,8 +60,23 @@ export async function GET() {
     db.lead.groupBy({ by: ["tier"], where: { orgId }, _count: true }),
   ]);
 
+  // Convert BigInt to Number to prevent JSON.stringify crash
+  const totalLeads = Number(rawTotalLeads);
+  const leadsThisWeek = Number(rawLeadsThisWeek);
+  const leadsThisMonth = Number(rawLeadsThisMonth);
+  const hotLeads = Number(rawHotLeads);
+  const warmLeads = Number(rawWarmLeads);
+  const totalProperties = Number(rawTotalProperties);
+  const contactedCount = Number(rawContactedCount);
+  const convertedCount = Number(rawConvertedCount);
+  const enrichedCount = Number(rawEnrichedCount);
+  const enrichedThisMonth = Number(rawEnrichedThisMonth);
+  const clusterCount = Number(rawClusterCount);
+  const scrapingRuns = Number(rawScrapingRuns);
+  const failedRuns = Number(rawFailedRuns);
+
   const enrichmentRate = totalLeads > 0 ? Math.round((enrichedCount / totalLeads) * 100) : 0;
-  const scrapingSuccessRate = scrapingRuns > 0 ? Math.round(((scrapingRuns - failedRuns) / scrapingRuns) * 100) : 100;
+  const scrapingSuccessRate = scrapingRuns > 0 ? Math.round(((scrapingRuns - failedRuns) / scrapingRuns) * 100) : 0;
 
   return NextResponse.json({
     kpis: {
@@ -88,8 +103,8 @@ export async function GET() {
       tier,
     },
     recentLeads,
-    sourceBreakdown: sourceBreakdown.map((s) => ({ platform: s.platform, count: s._count })),
-    statusBreakdown: statusBreakdown.map((s) => ({ status: s.status, count: s._count })),
-    tierBreakdown: tierBreakdown.map((t) => ({ tier: t.tier, count: t._count })),
+    sourceBreakdown: sourceBreakdown.map((s) => ({ platform: s.platform, count: Number(s._count) })),
+    statusBreakdown: statusBreakdown.map((s) => ({ status: s.status, count: Number(s._count) })),
+    tierBreakdown: tierBreakdown.map((t) => ({ tier: t.tier, count: Number(t._count) })),
   });
 }

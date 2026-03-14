@@ -6,7 +6,7 @@ export async function GET() {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const stages = ["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED", "LOST"];
+  const stages = ["NEW", "CONTACTED", "ENGAGED", "NURTURE", "SITE_VISIT", "NEGOTIATION", "CONVERTED", "LOST"];
 
   const counts = await db.lead.groupBy({
     by: ["status"],
@@ -16,7 +16,7 @@ export async function GET() {
 
   const funnel = stages.map((stage) => ({
     stage,
-    count: counts.find((c) => c.status === stage)?._count ?? 0,
+    count: Number(counts.find((c) => c.status === stage)?._count ?? 0),
   }));
 
   return NextResponse.json(funnel);

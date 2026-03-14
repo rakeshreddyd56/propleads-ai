@@ -1,25 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoreBadge } from "./score-badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle, Link2 } from "lucide-react";
 import { toast } from "sonner";
 
-export function LeadDetail({ lead }: { lead: any }) {
+export function LeadDetail({ lead: initialLead }: { lead: any }) {
+  const router = useRouter();
+  const [leadData, setLeadData] = useState(initialLead);
+  const lead = leadData;
   const [scoring, setScoring] = useState(false);
   const [matching, setMatching] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [clustering, setClustering] = useState(false);
 
+  async function refreshLead() {
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`);
+      if (res.ok) setLeadData(await res.json());
+    } catch {}
+  }
+
   async function rescore() {
     setScoring(true);
     try {
       const res = await fetch(`/api/leads/${lead.id}/score`, { method: "POST" });
-      if (res.ok) toast.success("Lead re-scored!");
+      if (res.ok) { toast.success("Lead re-scored!"); await refreshLead(); }
     } catch { toast.error("Scoring failed"); }
     finally { setScoring(false); }
   }
@@ -28,7 +41,7 @@ export function LeadDetail({ lead }: { lead: any }) {
     setMatching(true);
     try {
       const res = await fetch(`/api/leads/${lead.id}/match`, { method: "POST" });
-      if (res.ok) toast.success("Properties matched!");
+      if (res.ok) { toast.success("Properties matched!"); await refreshLead(); }
     } catch { toast.error("Matching failed"); }
     finally { setMatching(false); }
   }
@@ -45,6 +58,7 @@ export function LeadDetail({ lead }: { lead: any }) {
       if (res.ok) {
         const found = [data.email && "email", data.phone && "phone", data.company && "company"].filter(Boolean);
         toast.success(found.length > 0 ? `Found: ${found.join(", ")}` : "No new contact info found");
+        await refreshLead();
       } else {
         toast.error(data.error ?? "Enrichment failed");
       }
@@ -52,14 +66,45 @@ export function LeadDetail({ lead }: { lead: any }) {
     finally { setEnriching(false); }
   }
 
+  const platformLabels: Record<string, string> = {
+    REDDIT: "Reddit", FACEBOOK: "Facebook", TWITTER: "X / Twitter", INSTAGRAM: "Instagram",
+    LINKEDIN: "LinkedIn", YOUTUBE: "YouTube", QUORA: "Quora", TELEGRAM: "Telegram",
+    NINETY_NINE_ACRES: "99acres", MAGICBRICKS: "MagicBricks", NOBROKER: "NoBroker",
+    COMMONFLOOR: "CommonFloor", GOOGLE_MAPS: "Google Maps",
+  };
+  const statusLabels: Record<string, string> = {
+    NEW: "New", CONTACTED: "Contacted", ENGAGED: "Engaged", NURTURE: "Nurture",
+    SITE_VISIT: "Site Visit", NEGOTIATION: "Negotiation", CONVERTED: "Converted", LOST: "Lost",
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{lead.name ?? "Unknown Lead"}</h1>
           <div className="mt-1 flex items-center gap-2">
-            <Badge variant="outline">{lead.platform}</Badge>
-            <Badge variant={lead.status === "NEW" ? "default" : "secondary"}>{lead.status}</Badge>
+            <Badge variant="outline">{platformLabels[lead.platform] ?? lead.platform}</Badge>
+            <Select value={lead.status} onValueChange={async (v) => {
+              if (!v) return;
+              try {
+                const res = await fetch(`/api/leads/${lead.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status: v }),
+                });
+                if (res.ok) { toast.success(`Status changed to ${statusLabels[v] ?? v}`); await refreshLead(); }
+                else toast.error("Failed to update status");
+              } catch { toast.error("Failed to update status"); }
+            }}>
+              <SelectTrigger className="h-7 w-36 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(statusLabels).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {lead.sourceUrl && (
               <a href={lead.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
                 Source <ExternalLink className="h-3 w-3" />
@@ -78,10 +123,19 @@ export function LeadDetail({ lead }: { lead: any }) {
           {matching ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null} Match Properties
         </Button>
         {lead.phone && (
-          <Button size="sm" variant="outline"><Phone className="mr-1 h-3 w-3" /> WhatsApp</Button>
+          <Button size="sm" variant="outline" onClick={() => {
+            let phone = lead.phone.replace(/[^0-9]/g, "");
+            if (phone.length === 10) phone = "91" + phone;
+            const msg = encodeURIComponent(`Hi ${lead.name ?? ""}, I noticed you were looking for a property. I'd love to help!`);
+            window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+          }}><Phone className="mr-1 h-3 w-3" /> WhatsApp</Button>
         )}
         {lead.email && (
-          <Button size="sm" variant="outline"><Mail className="mr-1 h-3 w-3" /> Email</Button>
+          <Button size="sm" variant="outline" onClick={() => {
+            const subject = encodeURIComponent(`Property options for you`);
+            const body = encodeURIComponent(`Hi ${lead.name ?? ""},\n\nI noticed you were looking for a property. I'd love to share some options with you.\n\nBest regards`);
+            window.open(`mailto:${lead.email}?subject=${subject}&body=${body}`);
+          }}><Mail className="mr-1 h-3 w-3" /> Email</Button>
         )}
         <Button size="sm" variant="outline" onClick={enrichContact} disabled={enriching}>
           {enriching ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />} Enrich Contact
@@ -107,7 +161,7 @@ export function LeadDetail({ lead }: { lead: any }) {
         }} disabled={clustering}>
           {clustering ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Link2 className="mr-1 h-3 w-3" />} Find Duplicates
         </Button>
-        <Button size="sm"><MessageSquare className="mr-1 h-3 w-3" /> AI Coach</Button>
+        <Button size="sm" onClick={() => router.push(`/coach?leadId=${lead.id}`)}><MessageSquare className="mr-1 h-3 w-3" /> AI Coach</Button>
       </div>
 
       {/* Cross-platform cluster info */}
@@ -122,11 +176,11 @@ export function LeadDetail({ lead }: { lead: any }) {
               {lead.cluster.leads
                 .filter((l: any) => l.id !== lead.id)
                 .map((l: any) => (
-                  <a key={l.id} href={`/leads/${l.id}`} className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs hover:bg-zinc-50 transition-colors">
-                    <Badge variant="outline" className="text-[10px]">{l.platform}</Badge>
+                  <Link key={l.id} href={`/leads/${l.id}`} className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs hover:bg-zinc-50 transition-colors">
+                    <Badge variant="outline" className="text-[10px]">{platformLabels[l.platform] ?? l.platform}</Badge>
                     <span>{l.name ?? "Unknown"}</span>
                     <span className="text-zinc-400">Score: {l.score}</span>
-                  </a>
+                  </Link>
                 ))}
             </div>
           </CardContent>
@@ -172,7 +226,7 @@ export function LeadDetail({ lead }: { lead: any }) {
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-zinc-500 mb-1">Buyer Persona</p>
-                <p className="font-medium">{lead.buyerPersona ?? "Unknown"}</p>
+                <p className="font-medium">{lead.buyerPersona?.replace(/_/g, " ") ?? "Unknown"}</p>
               </CardContent>
             </Card>
           </div>
@@ -220,7 +274,7 @@ export function LeadDetail({ lead }: { lead: any }) {
           {lead.outreachEvents?.map((e: any) => (
             <div key={e.id} className="flex items-center justify-between rounded-lg border p-3">
               <div>
-                <p className="text-sm font-medium">{e.channel} · {e.direction}</p>
+                <p className="text-sm font-medium">{e.channel?.replace(/_/g, " ")} · {e.direction?.replace(/_/g, " ")}</p>
                 <p className="text-xs text-zinc-500">{new Date(e.createdAt).toLocaleString()}</p>
               </div>
               <Badge variant={e.status === "SENT" ? "default" : e.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">{e.status}</Badge>

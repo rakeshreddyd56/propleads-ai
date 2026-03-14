@@ -13,12 +13,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const updated = await db.scrapingSource.update({
-    where: { id },
+    where: { id, orgId },
     data: {
-      ...(body.isActive !== undefined && { isActive: body.isActive }),
-      ...(body.keywords && { keywords: body.keywords }),
-      ...(body.identifier && { identifier: body.identifier }),
-      ...(body.displayName && { displayName: body.displayName }),
+      ...(body.isActive !== undefined && { isActive: Boolean(body.isActive) }),
+      ...(typeof body.keywords === "object" && Array.isArray(body.keywords) && { keywords: body.keywords.map(String) }),
+      ...(typeof body.identifier === "string" && body.identifier && { identifier: body.identifier }),
+      ...(typeof body.displayName === "string" && body.displayName && { displayName: body.displayName }),
     },
   });
 
@@ -34,6 +34,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const source = await db.scrapingSource.findFirst({ where: { id, orgId } });
   if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await db.scrapingSource.delete({ where: { id } });
+  await db.scrapingSource.delete({ where: { id, orgId } });
   return NextResponse.json({ ok: true });
 }

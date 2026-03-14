@@ -14,11 +14,37 @@ export async function POST(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { tier, billingCycle, slackWebhookUrl, notifyEmail } = await req.json();
+  const body = await req.json();
+  const { tier, billingCycle, slackWebhookUrl, notifyEmail } = body;
 
   const validTiers = ["FREE", "STARTER", "GROWTH", "PRO"];
   if (tier && !validTiers.includes(tier)) {
     return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
+  }
+
+  const validCycles = ["monthly", "annual"];
+  if (billingCycle && !validCycles.includes(billingCycle)) {
+    return NextResponse.json({ error: "Invalid billing cycle" }, { status: 400 });
+  }
+
+  // Validate slackWebhookUrl if provided
+  if (slackWebhookUrl && typeof slackWebhookUrl === "string" && slackWebhookUrl.length > 0) {
+    try {
+      const parsed = new URL(slackWebhookUrl);
+      if (!parsed.hostname.endsWith("slack.com")) {
+        return NextResponse.json({ error: "Slack webhook URL must be a hooks.slack.com URL" }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid Slack webhook URL" }, { status: 400 });
+    }
+  }
+
+  // Validate notifyEmail if provided
+  if (notifyEmail && typeof notifyEmail === "string" && notifyEmail.length > 0) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(notifyEmail) || notifyEmail.length > 254) {
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+    }
   }
 
   // If just updating notification settings (no tier change)

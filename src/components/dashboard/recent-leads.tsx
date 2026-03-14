@@ -13,6 +13,13 @@ interface RecentLead {
   preferredArea: string[];
 }
 
+const platformLabels: Record<string, string> = {
+  REDDIT: "Reddit", FACEBOOK: "Facebook", TWITTER: "X / Twitter", INSTAGRAM: "Instagram",
+  LINKEDIN: "LinkedIn", YOUTUBE: "YouTube", QUORA: "Quora", TELEGRAM: "Telegram",
+  NINETY_NINE_ACRES: "99acres", MAGICBRICKS: "MagicBricks", NOBROKER: "NoBroker",
+  COMMONFLOOR: "CommonFloor", GOOGLE_MAPS: "Google Maps",
+};
+
 export function RecentLeads({ leads }: { leads: RecentLead[] }) {
   return (
     <Card>
@@ -39,7 +46,7 @@ export function RecentLeads({ leads }: { leads: RecentLead[] }) {
                 <div>
                   <p className="text-sm font-medium">{lead.name ?? "Unknown"}</p>
                   <p className="text-xs text-zinc-500">
-                    {lead.platform} {lead.preferredArea.length > 0 && `· ${lead.preferredArea[0]}`}
+                    {platformLabels[lead.platform] ?? lead.platform} {lead.preferredArea.length > 0 && `· ${lead.preferredArea[0]}`}
                   </p>
                 </div>
               </div>

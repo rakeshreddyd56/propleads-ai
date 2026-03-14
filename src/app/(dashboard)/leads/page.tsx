@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,13 +84,14 @@ function tierConfig(tier: string) {
 }
 
 export default function LeadsPage() {
+  const searchParams = useSearchParams();
   const [leads, setLeads] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [tierFilter, setTierFilter] = useState("all");
+  const [tierFilter, setTierFilter] = useState(searchParams.get("tier") ?? "all");
   const [platformFilter, setPlatformFilter] = useState("all");
   const limit = 50;
 
@@ -264,7 +266,7 @@ export default function LeadsPage() {
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       )}
-                      <Badge variant="outline" className="ml-auto text-[10px]">{lead.status}</Badge>
+                      <Badge variant="outline" className="ml-auto text-[10px]">{({"NEW":"New","CONTACTED":"Contacted","ENGAGED":"Engaged","SITE_VISIT":"Site Visit","NEGOTIATION":"Negotiation","CONVERTED":"Converted","LOST":"Lost","NURTURE":"Nurture"} as Record<string,string>)[lead.status] ?? lead.status}</Badge>
                     </div>
 
                     {/* Row 3: What they said */}

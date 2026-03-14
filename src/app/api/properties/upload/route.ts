@@ -9,11 +9,32 @@ export async function POST(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { blobUrl, fileName, fileType } = await req.json();
-  if (!blobUrl) return NextResponse.json({ error: "No blob URL provided" }, { status: 400 });
+  const body = await req.json();
+  const { blobUrl, fileName, fileType } = body;
+  if (!blobUrl || typeof blobUrl !== "string") {
+    return NextResponse.json({ error: "No blob URL provided" }, { status: 400 });
+  }
+
+  // Validate blobUrl is a proper URL to prevent SSRF
+  try {
+    const parsedUrl = new URL(blobUrl);
+    if (!["https:", "http:"].includes(parsedUrl.protocol)) {
+      return NextResponse.json({ error: "Invalid blob URL protocol" }, { status: 400 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Invalid blob URL" }, { status: 400 });
+  }
+
+  const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+  if (!fileType || !allowedTypes.includes(fileType)) {
+    return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
+  }
 
   // Fetch the file from Blob storage for AI analysis
   const fileRes = await fetch(blobUrl);
+  if (!fileRes.ok) {
+    return NextResponse.json({ error: "Failed to fetch file from blob storage" }, { status: 502 });
+  }
   const arrayBuffer = await fileRes.arrayBuffer();
   const base64 = Buffer.from(arrayBuffer).toString("base64");
 
@@ -53,7 +74,12 @@ Respond with valid JSON only.`,
   });
 
   const text = response.content.find((b) => b.type === "text")?.text ?? "{}";
-  const extracted: ExtractedProperty = JSON.parse(text.replace(/```json\n?|\n?```/g, "").trim());
+  let extracted: ExtractedProperty;
+  try {
+    extracted = JSON.parse(text.replace(/```json\n?|\n?```/g, "").trim());
+  } catch {
+    return NextResponse.json({ error: "Failed to parse AI extraction result" }, { status: 500 });
+  }
 
   return NextResponse.json({ blobUrl, extracted });
 }

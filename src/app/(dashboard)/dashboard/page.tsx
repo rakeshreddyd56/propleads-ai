@@ -52,7 +52,10 @@ export default async function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div data-tour="recent-leads"><RecentLeads leads={recentLeads} /></div>
-        <div data-tour="source-chart"><SourceChart data={sourceBreakdown.map(s => ({ platform: s.platform, count: s._count }))} /></div>
+        <div data-tour="source-chart"><SourceChart data={sourceBreakdown.map(s => {
+          const labels: Record<string, string> = { REDDIT: "Reddit", FACEBOOK: "Facebook", TWITTER: "X/Twitter", INSTAGRAM: "Instagram", LINKEDIN: "LinkedIn", YOUTUBE: "YouTube", QUORA: "Quora", TELEGRAM: "Telegram", NINETY_NINE_ACRES: "99acres", MAGICBRICKS: "MagicBricks", NOBROKER: "NoBroker", COMMONFLOOR: "CommonFloor", GOOGLE_MAPS: "Google Maps" };
+          return { platform: labels[s.platform] ?? s.platform, count: s._count };
+        })} /></div>
       </div>
 
       <div data-tour="lead-funnel"><LeadFunnel stages={["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED"].map(stage => ({

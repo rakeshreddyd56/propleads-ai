@@ -8,9 +8,21 @@ export async function POST(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { leadId, templateName, parameters, mediaUrl } = await req.json();
+  const body = await req.json();
+  const { leadId, templateName, parameters, mediaUrl } = body;
+  if (!leadId || typeof leadId !== "string") {
+    return NextResponse.json({ error: "leadId is required" }, { status: 400 });
+  }
+  if (!templateName || typeof templateName !== "string") {
+    return NextResponse.json({ error: "templateName is required" }, { status: 400 });
+  }
+
   const lead = await db.lead.findFirst({ where: { id: leadId, orgId } });
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+
+  if (!lead.phone) {
+    return NextResponse.json({ error: "Lead has no phone number" }, { status: 400 });
+  }
 
   const compliance = checkCompliance(lead, "WHATSAPP");
   if (!compliance.allowed) {
@@ -18,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await sendWhatsAppTemplate({
-    phoneNumber: lead.phone!,
+    phoneNumber: lead.phone,
     templateName,
     parameters,
     mediaUrl,

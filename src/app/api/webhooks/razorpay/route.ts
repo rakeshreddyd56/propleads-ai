@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         const subscription = payload.subscription?.entity;
         if (!subscription) break;
 
-        const orgId = subscription.notes?.orgId;
+        const orgId = subscription.notes?.org_id;
         if (!orgId) {
           console.warn("[Razorpay Webhook] No orgId in subscription notes");
           break;
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         const subscription = payload.subscription?.entity;
         if (!subscription) break;
 
-        const orgId = subscription.notes?.orgId;
+        const orgId = subscription.notes?.org_id;
         if (!orgId) break;
 
         // Downgrade to FREE
@@ -108,8 +108,9 @@ export async function POST(req: NextRequest) {
         console.log(`[Razorpay Webhook] Unhandled event: ${eventType}`);
     }
   } catch (error: any) {
+    // Log the error but always return 200 to prevent Razorpay retry loops.
+    // Webhooks can be replayed from the Razorpay Dashboard if needed.
     console.error(`[Razorpay Webhook] Error handling ${eventType}:`, error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({ status: "ok" });

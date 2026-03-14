@@ -68,14 +68,15 @@ export default function ScrapingPage() {
     fetch("/api/scraping/sources")
       .then((r) => r.json())
       .then(setSources)
+      .catch(() => {})
       .finally(() => setLoading(false));
     fetch("/api/plans").then((r) => r.json()).then((d) => {
       setTier(d.current.tier);
       setRunsToday(d.current.runsToday);
       const limits: Record<string, number> = { FREE: 2, STARTER: 5, GROWTH: 10, PRO: 999 };
       setMaxRuns(limits[d.current.tier] ?? 2);
-    });
-    fetch("/api/scraping/run-groups?limit=5").then((r) => r.json()).then(setRunHistory);
+    }).catch(() => {});
+    fetch("/api/scraping/run-groups?limit=5").then((r) => r.json()).then(setRunHistory).catch(() => {});
   }, []);
 
   async function refreshSources() {
@@ -151,12 +152,12 @@ export default function ScrapingPage() {
           });
           const data = await res.json();
           if (!data.error) {
-            totalNew += data.newLeads ?? data.leadsFound ?? 0;
-            totalUpdated += data.updatedLeads ?? 0;
-            totalSkipped += data.skippedLeads ?? 0;
+            totalNew += data.leadsFound ?? data.newLeads ?? 0;
+            totalUpdated += data.leadsUpdated ?? data.updatedLeads ?? 0;
+            totalSkipped += data.skippedDup ?? data.skippedLeads ?? 0;
             succeeded++;
-            if ((data.newLeads ?? data.leadsFound ?? 0) > 0) {
-              toast.success(`${config?.icon} ${source.displayName}: ${data.newLeads ?? data.leadsFound} new leads`);
+            if ((data.leadsFound ?? data.newLeads ?? 0) > 0) {
+              toast.success(`${config?.icon} ${source.displayName}: ${data.leadsFound ?? data.newLeads} new leads`);
             }
           } else {
             toast.error(`${config?.icon} ${source.displayName}: ${data.error}`);
@@ -224,14 +225,16 @@ export default function ScrapingPage() {
           keywords: newSource.keywords.split(",").map((k) => k.trim()).filter(Boolean),
         }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const source = await res.json();
-        setSources((prev) => [source, ...prev]);
+        setSources((prev) => [data, ...prev]);
         setAddOpen(false);
         setNewSource({ platform: "", identifier: "", displayName: "", keywords: "" });
         toast.success("Source added!");
+      } else {
+        toast.error(data.error ?? "Failed to add source");
       }
-    } catch { toast.error("Failed to add"); }
+    } catch { toast.error("Failed to add source"); }
   }
 
   const grouped = {

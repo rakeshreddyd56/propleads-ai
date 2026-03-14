@@ -347,7 +347,7 @@ const tourSections: TourSection[] = [
       {
         id: "buyer-personas",
         title: "Buyer Personas",
-        description: "Six buyer segments with typical budgets and preferred areas:\n\u2022 IT Professional: 50L-1.5Cr, tech corridors\n\u2022 NRI: 1Cr+, premium areas\n\u2022 First-time Buyer: 30-60L, affordable zones\n\u2022 Investor: Multiple properties, rental yield focus\n\u2022 Luxury Buyer: 2Cr+, Jubilee Hills/Banjara Hills\n\u2022 Family Upgrader: 80L-1.5Cr, established areas",
+        description: "Six buyer segments with typical budgets and preferred areas:\n\u2022 IT Professional: 60L-1.5Cr, tech corridors\n\u2022 NRI: 1Cr+, premium areas\n\u2022 First-time Buyer: 30-60L, affordable zones\n\u2022 Investor: Multiple properties, rental yield focus\n\u2022 Luxury Buyer: 2Cr+, Jubilee Hills/Banjara Hills\n\u2022 Family Upgrader: 80L-1.5Cr, established areas",
         selector: "[data-tour='personas']",
       },
     ],

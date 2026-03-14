@@ -96,9 +96,21 @@ async function searchViaFirecrawl(
     const markdown = result.markdown ?? "";
     const title = result.title?.replace(/ : r\/\w+$/, "")?.replace(/ - Reddit$/, "") ?? "";
 
-    // Extract author from URL or content
-    const authorMatch = markdown.match(/(?:Posted by|submitted by|u\/)(\w+)/i);
-    const author = authorMatch?.[1] ?? "unknown";
+    // Extract author from URL or content — multiple patterns for Firecrawl results
+    const authorMatch = markdown.match(
+      /(?:Posted by|submitted by|u\/|\/user\/)(\w+)/i
+    );
+    let author = authorMatch?.[1] ?? "unknown";
+    // Fallback: try extracting from reddit URL path (e.g., /r/sub/comments/id/slug/)
+    if (author === "unknown") {
+      const urlUserMatch = result.url.match(/reddit\.com\/u(?:ser)?\/(\w+)/);
+      if (urlUserMatch) author = urlUserMatch[1];
+    }
+    // Fallback: try extracting from markdown "by username" or "• username •" patterns
+    if (author === "unknown") {
+      const altMatch = markdown.match(/(?:^|\n)\s*(?:by |• )(\w{3,20})\s*(?:•|\n)/m);
+      if (altMatch) author = altMatch[1];
+    }
 
     // Extract subreddit from URL
     const subMatch = result.url.match(/reddit\.com\/r\/(\w+)/);

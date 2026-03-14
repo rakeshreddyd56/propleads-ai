@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Flame, Sun, Snowflake, Search, Loader2,
-  ChevronLeft, ChevronRight, Zap, RefreshCw, ExternalLink, User,
+  ChevronLeft, ChevronRight, Zap, RefreshCw, ExternalLink, User, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -93,13 +93,17 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState(searchParams.get("tier") ?? "all");
   const [platformFilter, setPlatformFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sort, setSort] = useState("score_desc");
+  const [apiTierCounts, setApiTierCounts] = useState<Record<string, number>>({});
   const limit = 50;
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      const params = new URLSearchParams({ page: String(page), limit: String(limit), sort });
       if (tierFilter !== "all") params.set("tier", tierFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
       if (platformFilter !== "all") params.set("platform", platformFilter);
       if (search.trim()) params.set("search", search.trim());
       const res = await fetch(`/api/leads?${params}`);
@@ -107,20 +111,19 @@ export default function LeadsPage() {
         const data = await res.json();
         setLeads(data.leads);
         setTotal(data.total);
+        if (data.tierCounts) setApiTierCounts(data.tierCounts);
       }
     } catch { toast.error("Failed to load leads"); }
     finally { setLoading(false); }
-  }, [page, tierFilter, platformFilter, search]);
+  }, [page, tierFilter, statusFilter, platformFilter, search, sort]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
-  const tierCounts = { HOT: 0, WARM: 0, COLD: 0, UNSCORED: 0 };
-  leads.forEach((l) => {
-    if (l.score === 0 && !l.tier) tierCounts.UNSCORED++;
-    else if (l.tier === "HOT") tierCounts.HOT++;
-    else if (l.tier === "WARM") tierCounts.WARM++;
-    else if (l.tier === "COLD") tierCounts.COLD++;
-  });
+  const tierCounts = {
+    HOT: apiTierCounts.HOT ?? 0,
+    WARM: apiTierCounts.WARM ?? 0,
+    COLD: apiTierCounts.COLD ?? 0,
+  };
 
   async function scoreAll() {
     setScoring(true);
@@ -152,6 +155,17 @@ export default function LeadsPage() {
           <p className="text-sm text-zinc-500">{total} leads found across all sources</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => {
+            const exportParams = new URLSearchParams();
+            if (tierFilter !== "all") exportParams.set("tier", tierFilter);
+            if (statusFilter !== "all") exportParams.set("status", statusFilter);
+            if (platformFilter !== "all") exportParams.set("platform", platformFilter);
+            if (search.trim()) exportParams.set("search", search.trim());
+            const qs = exportParams.toString();
+            window.open(`/api/leads/export${qs ? `?${qs}` : ""}`, "_blank");
+          }}>
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchLeads} disabled={loading}>
             <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", loading && "animate-spin")} /> Refresh
           </Button>
@@ -163,6 +177,11 @@ export default function LeadsPage() {
       </div>
 
       {/* Quick Stats */}
+      <div className="text-[10px] text-zinc-400 flex gap-4">
+        <span><strong>Score</strong> = AI quality rating (0-100)</span>
+        <span><strong>Tier</strong> = HOT (75+) / WARM (40-74) / COLD (&lt;40)</span>
+        <span><strong>Status</strong> = Sales pipeline stage (New → Converted)</span>
+      </div>
       <div data-tour="tier-filters" className="flex gap-3">
         {(["HOT", "WARM", "COLD"] as const).map((t) => {
           const { bg, text } = tierConfig(t);
@@ -200,9 +219,34 @@ export default function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
-        {(tierFilter !== "all" || platformFilter !== "all" || search) && (
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v ?? "all"); setPage(1); }}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="NEW">New</SelectItem>
+            <SelectItem value="CONTACTED">Contacted</SelectItem>
+            <SelectItem value="ENGAGED">Engaged</SelectItem>
+            <SelectItem value="SITE_VISIT">Site Visit</SelectItem>
+            <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
+            <SelectItem value="CONVERTED">Converted</SelectItem>
+            <SelectItem value="LOST">Lost</SelectItem>
+            <SelectItem value="NURTURE">Nurture</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sort} onValueChange={(v) => { setSort(v ?? "score_desc"); setPage(1); }}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Sort by" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="score_desc">Score (High-Low)</SelectItem>
+            <SelectItem value="score_asc">Score (Low-High)</SelectItem>
+            <SelectItem value="date_desc">Newest First</SelectItem>
+            <SelectItem value="date_asc">Oldest First</SelectItem>
+            <SelectItem value="name_asc">Name (A-Z)</SelectItem>
+            <SelectItem value="budget_desc">Budget (High-Low)</SelectItem>
+          </SelectContent>
+        </Select>
+        {(tierFilter !== "all" || platformFilter !== "all" || statusFilter !== "all" || search) && (
           <Button variant="ghost" size="sm"
-            onClick={() => { setTierFilter("all"); setPlatformFilter("all"); setSearch(""); setPage(1); }}>
+            onClick={() => { setTierFilter("all"); setPlatformFilter("all"); setStatusFilter("all"); setSearch(""); setPage(1); }}>
             Clear
           </Button>
         )}
@@ -218,6 +262,7 @@ export default function LeadsPage() {
           <Search className="mb-3 h-10 w-10 text-zinc-300" />
           <p className="text-lg font-medium text-zinc-500">No leads found</p>
           <p className="text-sm text-zinc-400 mt-1">Run scraping from the Sources page to discover leads</p>
+          <Link href="/scraping" className="mt-3 text-sm text-blue-500 hover:underline">Go to Lead Sources →</Link>
         </div>
       ) : (
         <div data-tour="lead-list" className="space-y-3">
@@ -234,7 +279,7 @@ export default function LeadsPage() {
                   {/* Score Circle */}
                   <div className="flex flex-col items-center gap-1 pt-0.5">
                     <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white", tc.bg)}>
-                      {lead.score || "?"}
+                      {lead.score != null ? lead.score : "?"}
                     </div>
                     {tc.label && <span className={cn("text-[10px] font-semibold uppercase", tc.text)}>{tc.label}</span>}
                   </div>

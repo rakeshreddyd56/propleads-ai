@@ -7,6 +7,7 @@ export interface ExtractedProperty {
   reraNumber: string | null;
   location: string;
   area: string;
+  propertyType: "APARTMENT" | "VILLA" | "PLOT" | "COMMERCIAL" | "PENTHOUSE" | "INDEPENDENT_HOUSE";
   unitTypes: { type: string; sizeSqft: number; priceINR: number }[];
   amenities: string[];
   usps: string[];
@@ -46,6 +47,7 @@ export async function extractFromBrochure(file: File): Promise<{
   "reraNumber": "RERA registration number or null",
   "location": "full address",
   "area": "micro-market name (e.g. Gachibowli, Kokapet, Kondapur)",
+  "propertyType": "APARTMENT | VILLA | PLOT | COMMERCIAL | PENTHOUSE | INDEPENDENT_HOUSE",
   "unitTypes": [{"type": "2BHK", "sizeSqft": 1200, "priceINR": 7500000}],
   "amenities": ["swimming pool", "gym", ...],
   "usps": ["Vastu compliant", "5 min from IT hub", ...],

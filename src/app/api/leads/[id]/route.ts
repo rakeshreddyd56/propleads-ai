@@ -63,16 +63,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     );
   }
 
-  // Whitelist allowed fields — score and tier should NOT be directly settable (use /score endpoint)
+  // Whitelist allowed fields
   const allowedFields = [
     "name", "email", "phone", "budget", "budgetMin", "budgetMax",
     "preferredLocations", "preferredAmenities", "preferredUnitTypes",
     "source", "assignedToId", "optInEmail", "optInWhatsApp",
-    "status",
+    "status", "notes", "score", "tier",
   ] as const;
   const data: Record<string, unknown> = {};
   for (const field of allowedFields) {
     if (field in body) data[field] = body[field];
+  }
+
+  // Validate manual score override
+  if ("score" in data) {
+    const s = Number(data.score);
+    if (isNaN(s) || s < 0 || s > 100) {
+      return NextResponse.json({ error: "Score must be 0-100" }, { status: 400 });
+    }
+    data.score = s;
+    // Auto-set tier based on score
+    data.tier = s >= 75 ? "HOT" : s >= 40 ? "WARM" : "COLD";
+  }
+  if ("tier" in data && !["HOT", "WARM", "COLD"].includes(data.tier as string)) {
+    return NextResponse.json({ error: "Tier must be HOT, WARM, or COLD" }, { status: 400 });
   }
 
   const lead = await db.lead.update({ where: { id, orgId }, data });

@@ -45,7 +45,7 @@ ${platformHint}
 
 Post: "${text.slice(0, 3000)}"
 
-Hyderabad areas to look for: Gachibowli, Kondapur, Madhapur, HITEC City, Kokapet, Narsingi, Financial District, Tellapur, Kollur, Shamshabad, Adibatla, Kompally, Medchal, Miyapur, Kukatpally, Manikonda, Puppalaguda, Bachupally, Patancheru, Jubilee Hills, Banjara Hills, Uppal, LB Nagar, Secunderabad, Begumpet, Ameerpet, Tolichowki, Nallagandla, Gopanpally, Lingampally, Nizampet, Pragathi Nagar, Chandanagar, Rajendra Nagar, Attapur, Mehdipatnam.
+Hyderabad areas to look for: Gachibowli, Kondapur, Madhapur, HITEC City, Kokapet, Narsingi, Financial District, Tellapur, Kollur, Shamshabad, Adibatla, Kompally, Medchal, Miyapur, Kukatpally, Manikonda, Puppalaguda, Bachupally, Patancheru, Jubilee Hills, Banjara Hills, Uppal, LB Nagar, Secunderabad, Begumpet, Ameerpet, Tolichowki, Nallagandla, Gopanpally, Lingampally, Nizampet, Pragathi Nagar, Chandanagar, Rajendra Nagar, Attapur, Mehdipatnam, Nanakramguda, Khajaguda, Gandipet, Shadnagar, Dundigal, Appa Junction.
 
 Budget conversion: 1L = 1 lakh = 100,000 INR, 1Cr = 1 crore = 10,000,000 INR
 
@@ -75,7 +75,7 @@ ${platformHint}
 
 Post: "${text.slice(0, 2000)}"
 
-Areas: Gachibowli, Kondapur, Madhapur, HITEC City, Kokapet, Narsingi, Financial District, Tellapur, Kollur, Shamshabad, Kompally, Miyapur, Kukatpally, Manikonda, Bachupally, Jubilee Hills, Banjara Hills, Uppal, LB Nagar, Secunderabad.
+Areas: Gachibowli, Kondapur, Madhapur, HITEC City, Kokapet, Narsingi, Financial District, Tellapur, Kollur, Shamshabad, Kompally, Miyapur, Kukatpally, Manikonda, Bachupally, Jubilee Hills, Banjara Hills, Uppal, LB Nagar, Secunderabad, Begumpet, Ameerpet, Tolichowki, Nallagandla, Gopanpally, Lingampally, Nizampet, Pragathi Nagar, Chandanagar, Rajendra Nagar, Attapur, Mehdipatnam, Adibatla, Medchal, Patancheru, Puppalaguda, Nanakramguda, Khajaguda, Gandipet, Shadnagar, Dundigal, Appa Junction.
 
 Budget: 1L = 100,000 INR, 1Cr = 10,000,000 INR
 

@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const allowedFields = [
     "name", "builderName", "location", "area", "city",
     "priceMin", "priceMax", "amenities", "unitTypes",
-    "reraNumber", "possessionDate", "status", "usps",
+    "reraNumber", "possessionDate", "status", "propertyType", "usps", "description",
   ] as const;
   const data: Record<string, unknown> = {};
   for (const field of allowedFields) {
@@ -78,6 +78,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  await db.property.delete({ where: { id, orgId } });
+  // Soft-delete: set status to ARCHIVED instead of hard deleting.
+  // This preserves match data and allows recovery.
+  await db.property.update({ where: { id, orgId }, data: { status: "ARCHIVED" } });
   return NextResponse.json({ success: true });
 }

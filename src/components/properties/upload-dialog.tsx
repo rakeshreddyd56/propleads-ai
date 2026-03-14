@@ -13,7 +13,7 @@ import { Upload, Loader2, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { upload } from "@vercel/blob/client";
 
-export function UploadDialog() {
+export function UploadDialog({ onUploaded }: { onUploaded?: () => void } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -61,8 +61,8 @@ export function UploadDialog() {
           ...extracted,
           brochureUrl: blobUrl,
           extractedData: extracted,
-          priceMin: extracted.unitTypes?.length > 0 ? Math.min(...extracted.unitTypes.map((u: any) => u.priceINR ?? 0)) : null,
-          priceMax: extracted.unitTypes?.length > 0 ? Math.max(...extracted.unitTypes.map((u: any) => u.priceINR ?? 0)) : null,
+          priceMin: extracted.unitTypes?.length > 0 ? Math.min(...extracted.unitTypes.map((u: any) => u.priceINR).filter((v: any) => v && v > 0)) || null : null,
+          priceMax: extracted.unitTypes?.length > 0 ? Math.max(...extracted.unitTypes.map((u: any) => u.priceINR).filter((v: any) => v && v > 0)) || null : null,
         }),
       });
       if (res.ok) {
@@ -71,6 +71,7 @@ export function UploadDialog() {
         setExtracted(null);
         setFile(null);
         router.refresh();
+        onUploaded?.();
       } else {
         const err = await res.json().catch(() => null);
         toast.error(err?.error ?? "Failed to save property");
@@ -147,7 +148,7 @@ export function UploadDialog() {
                 <div className="flex flex-wrap gap-2 mt-1">
                   {extracted.unitTypes?.map((u: any, i: number) => (
                     <Badge key={i} variant="outline">
-                      {u.type} · {u.sizeSqft} sqft · ₹{(u.priceINR / 100000).toFixed(0)}L
+                      {u.type}{u.sizeSqft ? ` · ${u.sizeSqft} sqft` : ""}{u.priceINR ? ` · ₹${(u.priceINR / 100000).toFixed(0)}L` : ""}
                     </Badge>
                   ))}
                 </div>
@@ -166,6 +167,24 @@ export function UploadDialog() {
                   {extracted.usps?.map((u: string, i: number) => <li key={i}>{u}</li>)}
                 </ul>
               </div>
+              {extracted.possessionDate && (
+                <div>
+                  <Label className="text-xs text-zinc-500">Possession Date</Label>
+                  <p>{extracted.possessionDate}</p>
+                </div>
+              )}
+              {extracted.description && (
+                <div>
+                  <Label className="text-xs text-zinc-500">Description</Label>
+                  <p className="text-sm text-zinc-700">{extracted.description}</p>
+                </div>
+              )}
+              {extracted.propertyType && (
+                <div>
+                  <Label className="text-xs text-zinc-500">Property Type</Label>
+                  <p>{extracted.propertyType}</p>
+                </div>
+              )}
             </div>
 
             <DialogFooter>

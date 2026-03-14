@@ -21,6 +21,7 @@ export async function matchLeadToProperties(
     units: p.unitTypes,
     priceRange: `${p.priceMin ? Number(p.priceMin) / 100000 : "?"} - ${p.priceMax ? Number(p.priceMax) / 100000 : "?"} lakhs`,
     usps: p.usps,
+    amenities: p.amenities,
   }));
 
   return claudeJSON<MatchResult[]>(`

@@ -16,10 +16,14 @@ function UsageMeter({ label, used, limit, color }: { label: string; used: number
     <div>
       <div className="flex justify-between text-sm mb-1">
         <span className="text-zinc-600">{label}</span>
-        <span className="font-medium">{used}{isUnlimited ? "" : ` / ${limit}`}</span>
+        <span className="font-medium">{used}{isUnlimited ? " (unlimited)" : ` / ${limit}`}</span>
       </div>
       <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: isUnlimited ? "5%" : `${pct}%` }} />
+        {isUnlimited ? (
+          <div className="h-full bg-green-400 rounded-full w-full opacity-50" />
+        ) : (
+          <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
+        )}
       </div>
     </div>
   );

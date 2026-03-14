@@ -185,10 +185,16 @@ export default function PlanSettingsPage() {
                   <span className="text-xl font-bold">{runsToday}</span>
                   <span className="text-sm text-zinc-500">/ {isUnlimitedRuns ? "∞" : runsLimit}</span>
                 </div>
-                <Progress
-                  value={isUnlimitedRuns ? 5 : Math.min((runsToday / runsLimit) * 100, 100)}
-                  className="h-2"
-                />
+                {isUnlimitedRuns ? (
+                  <div className="h-2 bg-green-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-400 rounded-full w-full opacity-50" />
+                  </div>
+                ) : (
+                  <Progress
+                    value={Math.min((runsToday / runsLimit) * 100, 100)}
+                    className="h-2"
+                  />
+                )}
                 {!isUnlimitedRuns && runsToday >= runsLimit && (
                   <p className="text-xs text-red-500 mt-1.5">Daily limit reached. Resets at midnight UTC.</p>
                 )}
@@ -202,10 +208,16 @@ export default function PlanSettingsPage() {
                   <span className="text-xl font-bold">{leadsThisMonth}</span>
                   <span className="text-sm text-zinc-500">/ {isUnlimitedLeads ? "∞" : leadsLimit}</span>
                 </div>
-                <Progress
-                  value={isUnlimitedLeads ? 5 : Math.min((leadsThisMonth / leadsLimit) * 100, 100)}
-                  className="h-2"
-                />
+                {isUnlimitedLeads ? (
+                  <div className="h-2 bg-green-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-400 rounded-full w-full opacity-50" />
+                  </div>
+                ) : (
+                  <Progress
+                    value={Math.min((leadsThisMonth / leadsLimit) * 100, 100)}
+                    className="h-2"
+                  />
+                )}
                 {!isUnlimitedLeads && leadsThisMonth >= leadsLimit && (
                   <p className="text-xs text-red-500 mt-1.5">Monthly limit reached. Resets on the 1st.</p>
                 )}
@@ -364,18 +376,20 @@ export default function PlanSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm">DPDP Act 2023 Compliance</span>
-                <Badge variant="default" className="bg-green-600">Active</Badge>
+                <span className="text-sm">DPDP Act 2023</span>
+                <Badge variant="outline" className="text-blue-600 border-blue-200">Built-in</Badge>
               </div>
+              <p className="text-xs text-zinc-500">All outreach requires explicit opt-in. Leads must consent before email/WhatsApp.</p>
               <div className="flex items-center justify-between">
                 <span className="text-sm">TRAI DND Check</span>
-                <Badge variant="default" className="bg-green-600">Active</Badge>
+                <Badge variant="outline" className="text-blue-600 border-blue-200">Built-in</Badge>
               </div>
+              <p className="text-xs text-zinc-500">DND status is checked before SMS outreach to prevent regulatory violations.</p>
               <div className="flex items-center justify-between">
-                <span className="text-sm">RERA Verification</span>
-                <Badge variant="default" className="bg-green-600">Active</Badge>
+                <span className="text-sm">RERA Display</span>
+                <Badge variant="outline" className="text-blue-600 border-blue-200">Informational</Badge>
               </div>
-              <p className="text-xs text-zinc-400 pt-2">All outreach requires explicit opt-in per DPDP Act. DND status is verified before SMS. RERA numbers are validated on property upload.</p>
+              <p className="text-xs text-zinc-500">RERA numbers are extracted from brochures and displayed on property cards. Verification is the broker&apos;s responsibility.</p>
             </CardContent>
           </Card>
 

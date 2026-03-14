@@ -1,8 +1,10 @@
 import { createHash } from "crypto";
 import { db } from "@/lib/db";
 
-export function hashPost(platform: string, authorId: string, text: string): string {
-  const normalized = `${platform}|${authorId}|${text.toLowerCase().trim().replace(/\s+/g, " ").slice(0, 200)}`;
+export function hashPost(_platform: string, authorId: string, text: string): string {
+  // Platform-agnostic hash: same author + same text = duplicate regardless of platform.
+  // Hashes are already scoped per-org in filterNewPosts, so orgId|authorId|text is sufficient.
+  const normalized = `${authorId}|${text.toLowerCase().trim().replace(/\s+/g, " ").slice(0, 200)}`;
   return createHash("sha256").update(normalized).digest("hex");
 }
 

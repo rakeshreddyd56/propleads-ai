@@ -8,9 +8,13 @@ const BUDGET_PATTERNS = [
 
 const AREA_NAMES = [
   "Gachibowli", "Kondapur", "Madhapur", "HITEC City", "Kokapet", "Narsingi",
-  "Financial District", "Tellapur", "Kollur", "Shamshabad", "Adibatla",
-  "Kompally", "Medchal", "Miyapur", "Kukatpally", "Manikonda", "Puppalaguda",
-  "Bachupally", "Patancheru", "Jubilee Hills", "Banjara Hills",
+  "Financial District", "Nanakramguda", "Khajaguda", "Tellapur", "Kollur",
+  "Shamshabad", "Adibatla", "Kompally", "Medchal", "Miyapur", "Kukatpally",
+  "Manikonda", "Puppalaguda", "Bachupally", "Patancheru", "Jubilee Hills",
+  "Banjara Hills", "Gandipet", "Nizampet", "Uppal", "LB Nagar", "Attapur",
+  "Secunderabad", "Nallagandla", "Gopanpally", "Shadnagar", "Dundigal",
+  "Chandanagar", "Rajendra Nagar", "Appa Junction", "Tolichowki",
+  "Begumpet", "Ameerpet", "Lingampally", "Pragathi Nagar", "Mehdipatnam",
 ];
 
 export function extractBudget(text: string): { min: number | null; max: number | null; raw: string | null } {

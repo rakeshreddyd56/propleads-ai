@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
   "reraNumber": "RERA registration number or null",
   "location": "full address",
   "area": "micro-market name (e.g. Gachibowli, Kokapet, Kondapur)",
+  "propertyType": "APARTMENT | VILLA | PLOT | COMMERCIAL | PENTHOUSE | INDEPENDENT_HOUSE",
   "unitTypes": [{"type": "2BHK", "sizeSqft": 1200, "priceINR": 7500000}],
   "amenities": ["swimming pool", "gym", ...],
   "usps": ["Vastu compliant", "5 min from IT hub", ...],

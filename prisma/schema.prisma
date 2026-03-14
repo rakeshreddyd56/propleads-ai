@@ -83,6 +83,7 @@ model Property {
   priceMax        BigInt?
   possessionDate  DateTime?
   status          PropertyStatus    @default(ACTIVE)
+  description     String?
 
   brochureUrl     String?
   imagesUrls      String[]
@@ -151,6 +152,7 @@ model Lead {
   source          String?
   runGroupId      String?
 
+  notes           String?
   status          LeadStatus @default(NEW)
   optInWhatsApp   Boolean   @default(false)
   optInEmail      Boolean   @default(false)

@@ -21,12 +21,21 @@ const createSchema = z.object({
   description: z.string().nullable().optional(),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Exclude ARCHIVED properties by default. Archived properties are soft-deleted
+  // and preserved for match data history. The client-side status filter can still
+  // request them explicitly via query params if needed.
+  const statusParam = new URL(req.url).searchParams.get("status");
+  const validStatuses = ["ACTIVE", "SOLD_OUT", "UPCOMING", "ARCHIVED"] as const;
+  const statusFilter = validStatuses.includes(statusParam as any) ? (statusParam as (typeof validStatuses)[number]) : null;
   const properties = await db.property.findMany({
-    where: { orgId },
+    where: {
+      orgId,
+      ...(statusFilter ? { status: statusFilter } : { status: { not: "ARCHIVED" as const } }),
+    },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { matches: true } } },
   });
@@ -61,6 +70,7 @@ export async function POST(req: NextRequest) {
         priceMin: data.priceMin ? BigInt(data.priceMin) : null,
         priceMax: data.priceMax ? BigInt(data.priceMax) : null,
         possessionDate: data.possessionDate ? new Date(data.possessionDate) : null,
+        description: data.description ?? null,
         brochureUrl: data.brochureUrl ?? null,
         extractedData: data.extractedData ?? null,
       },

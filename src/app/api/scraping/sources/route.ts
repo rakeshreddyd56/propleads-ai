@@ -34,6 +34,8 @@ const defaultSources = [
   { platform: "YOUTUBE" as const, identifier: "hyderabad property review", displayName: "YT: Property Reviews", keywords: ["hyderabad", "apartment review", "flat tour", "gachibowli", "kokapet"] },
   { platform: "QUORA" as const, identifier: "buy flat hyderabad", displayName: "Quora: Buy Flat Hyderabad", keywords: ["hyderabad", "buy flat", "best area", "property investment"] },
   { platform: "LINKEDIN" as const, identifier: "hyderabad real estate", displayName: "LinkedIn: Hyderabad RE", keywords: ["hyderabad real estate", "property investment", "IT professional"] },
+  { platform: "TELEGRAM" as const, identifier: "hyderabad_real_estate", displayName: "TG: Hyderabad Real Estate", keywords: ["flat", "apartment", "property", "buy", "2BHK", "3BHK", "gachibowli", "kokapet"] },
+  { platform: "COMMONFLOOR" as const, identifier: "hyderabad", displayName: "CommonFloor: Hyderabad", keywords: ["flat", "apartment", "society", "maintenance", "property", "buy"] },
 ];
 
 export async function GET() {
@@ -46,8 +48,9 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  // Auto-seed default sources for new orgs, or backfill missing platforms
-  if (sources.length < defaultSources.length) {
+  // Auto-seed default sources only for brand-new orgs (no sources yet).
+  // Don't re-seed if user has deleted sources — respect their deletions.
+  if (sources.length === 0) {
     for (const s of defaultSources) {
       await db.scrapingSource.upsert({
         where: { orgId_platform_identifier: { orgId, platform: s.platform, identifier: s.identifier } },

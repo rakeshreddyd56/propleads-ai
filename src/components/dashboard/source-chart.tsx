@@ -20,7 +20,7 @@ export function SourceChart({ data }: { data: SourceData[] }) {
         ) : (
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={data}>
-              <XAxis dataKey="platform" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="platform" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} interval={0} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
               <Bar dataKey="count" fill="#f97316" radius={[4, 4, 0, 0]} />

@@ -21,9 +21,17 @@ export async function scoreLead(lead: {
   timeline: string | null;
   platform: string;
   buyerPersona: string | null;
-}, availableAreas: string[]): Promise<ScoreResult> {
+}, availableAreas: string[], priceRange: { min: number | null; max: number | null } = { min: null, max: null }): Promise<ScoreResult> {
+  const priceContext = priceRange.min != null && priceRange.max != null
+    ? `Our property prices range from ${priceRange.min} lakhs to ${priceRange.max} lakhs.`
+    : priceRange.min != null
+    ? `Our property prices start from ${priceRange.min} lakhs.`
+    : priceRange.max != null
+    ? `Our property prices go up to ${priceRange.max} lakhs.`
+    : "";
+
   return claudeJSON<ScoreResult>(`
-Score this real estate lead for Hyderabad market. Our properties are in: ${availableAreas.join(", ")}.
+Score this real estate lead for Hyderabad market. Our properties are in: ${availableAreas.join(", ")}.${priceContext ? `\n${priceContext}` : ""}
 
 Lead details:
 - Original post: "${lead.originalText ?? "N/A"}"

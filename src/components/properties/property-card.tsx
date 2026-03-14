@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, IndianRupee } from "lucide-react";
 
-function formatPrice(paise: bigint | null): string {
-  if (!paise) return "N/A";
+function formatPrice(paise: bigint | number | null): string {
+  if (!paise || Number(paise) === 0) return "";
   const lakhs = Number(paise) / 100000;
   if (lakhs >= 100) return `${(lakhs / 100).toFixed(1)} Cr`;
   return `${lakhs.toFixed(0)} L`;
@@ -28,7 +28,7 @@ export function PropertyCard({ property: p, matchCount }: { property: any; match
           </div>
           <div className="flex items-center gap-2 text-sm text-zinc-600">
             <IndianRupee className="h-3.5 w-3.5" />
-            <span>{formatPrice(p.priceMin)} — {formatPrice(p.priceMax)}</span>
+            <span>{formatPrice(p.priceMin) && formatPrice(p.priceMax) ? `${formatPrice(p.priceMin)} — ${formatPrice(p.priceMax)}` : formatPrice(p.priceMin) || formatPrice(p.priceMax) || "Price on Request"}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-zinc-600">
             <Users className="h-3.5 w-3.5" />

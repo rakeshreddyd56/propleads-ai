@@ -66,7 +66,8 @@ function mapApifyPost(item: any): FacebookPost | null {
 
 async function scrapeViaFirecrawl(groupId: string, keywords: string[], limit: number): Promise<FacebookPost[]> {
   const keywordStr = keywords.slice(0, 3).join(" ");
-  const query = `site:facebook.com ${keywordStr} hyderabad property flat buy`.trim();
+  const groupPath = groupId ? `site:facebook.com/groups/${groupId}` : "site:facebook.com";
+  const query = `${groupPath} ${keywordStr} hyderabad property flat buy`.trim();
   const results = await searchWeb(query, limit);
 
   return results

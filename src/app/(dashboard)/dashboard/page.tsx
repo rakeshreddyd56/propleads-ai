@@ -58,7 +58,7 @@ export default async function DashboardPage() {
         })} /></div>
       </div>
 
-      <div data-tour="lead-funnel"><LeadFunnel stages={["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED"].map(stage => ({
+      <div data-tour="lead-funnel"><LeadFunnel stages={["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED", "LOST", "NURTURE"].map(stage => ({
         stage,
         count: statusBreakdown.find(s => s.status === stage)?._count ?? 0,
       }))} /></div>

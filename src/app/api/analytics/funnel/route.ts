@@ -6,7 +6,7 @@ export async function GET() {
   const orgId = await resolveOrg();
   if (!orgId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const stages = ["NEW", "CONTACTED", "ENGAGED", "NURTURE", "SITE_VISIT", "NEGOTIATION", "CONVERTED", "LOST"];
+  const stages = ["NEW", "CONTACTED", "ENGAGED", "SITE_VISIT", "NEGOTIATION", "CONVERTED", "LOST", "NURTURE"];
 
   const counts = await db.lead.groupBy({
     by: ["status"],

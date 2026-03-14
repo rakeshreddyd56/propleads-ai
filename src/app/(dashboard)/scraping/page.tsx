@@ -12,26 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Globe, Play, Plus, Loader2, Trash2, Zap, CheckCircle2, XCircle, Clock, Lock, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-const TIER_PLATFORMS: Record<string, string[]> = {
-  FREE: ["REDDIT"],
-  STARTER: [
-    "REDDIT", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
-    "FACEBOOK", "COMMONFLOOR",
-  ],
-  GROWTH: [
-    "REDDIT", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
-    "FACEBOOK", "COMMONFLOOR",
-    "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
-    "GOOGLE_MAPS",
-  ],
-  PRO: [
-    "REDDIT", "NINETY_NINE_ACRES", "MAGICBRICKS", "NOBROKER",
-    "FACEBOOK", "COMMONFLOOR",
-    "INSTAGRAM", "TWITTER", "YOUTUBE", "LINKEDIN", "QUORA", "TELEGRAM",
-    "GOOGLE_MAPS",
-  ],
-};
+import { TIER_PLATFORMS } from "@/lib/scraping/tiers";
 
 const platformConfig: Record<string, { label: string; icon: string; requiresApify: boolean; description: string }> = {
   REDDIT: { label: "Reddit", icon: "🔴", requiresApify: false, description: "Public posts via Firecrawl web search" },
@@ -50,6 +31,22 @@ const platformConfig: Record<string, { label: string; icon: string; requiresApif
 };
 
 const platformOptions = Object.keys(platformConfig);
+
+const platformIdentifierHelp: Record<string, string> = {
+  REDDIT: "e.g., hyderabad (subreddit name without r/)",
+  FACEBOOK: "e.g., HyderabadRealEstate (group name or numeric ID)",
+  TWITTER: "e.g., hyderabad property (search query)",
+  QUORA: "e.g., buy flat hyderabad (search query)",
+  GOOGLE_MAPS: "e.g., real estate agents (business type to search)",
+  NINETY_NINE_ACRES: "e.g., Hyderabad (city name)",
+  MAGICBRICKS: "e.g., Hyderabad (city name)",
+  NOBROKER: "e.g., Hyderabad (city name)",
+  COMMONFLOOR: "e.g., hyderabad (forum/city slug)",
+  INSTAGRAM: "e.g., hyderabadrealestate (hashtag without #)",
+  LINKEDIN: "e.g., hyderabad real estate (search query)",
+  YOUTUBE: "e.g., hyderabad property review (search query)",
+  TELEGRAM: "e.g., hyderabad_real_estate (channel/group username)",
+};
 
 export default function ScrapingPage() {
   const [sources, setSources] = useState<any[]>([]);
@@ -303,8 +300,14 @@ export default function ScrapingPage() {
                 </div>
                 <div>
                   <Label>Identifier</Label>
-                  <Input placeholder="e.g., hyderabad (subreddit), group ID" value={newSource.identifier}
-                    onChange={(e) => setNewSource((p) => ({ ...p, identifier: e.target.value }))} />
+                  <Input
+                    placeholder={newSource.platform ? (platformIdentifierHelp[newSource.platform] ?? "Enter identifier") : "Select a platform first"}
+                    value={newSource.identifier}
+                    onChange={(e) => setNewSource((p) => ({ ...p, identifier: e.target.value }))}
+                  />
+                  {newSource.platform && platformIdentifierHelp[newSource.platform] && (
+                    <p className="text-xs text-zinc-500 mt-1">{platformIdentifierHelp[newSource.platform]}</p>
+                  )}
                 </div>
                 <div>
                   <Label>Display Name</Label>
@@ -382,7 +385,7 @@ function SourceCard({
   const requiresApify = config?.requiresApify ?? false;
   const lastRun = s.runs?.[0];
   const lastStatus = lastRun?.status;
-  const isLocked = !(TIER_PLATFORMS[tier] ?? TIER_PLATFORMS.FREE).includes(s.platform);
+  const isLocked = !(TIER_PLATFORMS[tier as keyof typeof TIER_PLATFORMS] ?? TIER_PLATFORMS.FREE).includes(s.platform);
 
   return (
     <Card className={cn(

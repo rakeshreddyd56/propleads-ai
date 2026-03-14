@@ -5,7 +5,7 @@ import { scoreLead } from "@/lib/ai/lead-scorer";
 import { db } from "@/lib/db";
 import { getPropertyContext, enrichKeywords } from "./property-context";
 import { filterNewPosts } from "./dedup";
-import { markSourceCompleted, markSourceErrored } from "./run-group";
+import { markSourceCompleted, markSourceErrored, completeRunGroup } from "./run-group";
 import { isPlatformAllowed, hasFeature, getRequiredTier, canCreateLead, TIER_LEADS_PER_MONTH, type PlanTier } from "./tiers";
 import { notifyIfHotLead } from "@/lib/notifications/hot-lead";
 import { enrichLead } from "@/lib/enrichment";
@@ -146,6 +146,7 @@ export async function runSingleSource(
 
     if (options?.runGroupId) {
       await markSourceCompleted(options.runGroupId, leadsFound, leadsUpdated);
+      await maybeCompleteRunGroup(options.runGroupId);
     }
 
     return {
@@ -169,6 +170,7 @@ export async function runSingleSource(
 
     if (options?.runGroupId) {
       await markSourceErrored(options.runGroupId);
+      await maybeCompleteRunGroup(options.runGroupId);
     }
 
     return {
@@ -180,6 +182,23 @@ export async function runSingleSource(
       skippedDup: 0,
       error: error.message,
     };
+  }
+}
+
+/**
+ * Check if all sources in a run group have finished (completed + errored >= total).
+ * If so, finalize the run group status.
+ */
+async function maybeCompleteRunGroup(runGroupId: string) {
+  try {
+    const group = await db.runGroup.findUnique({ where: { id: runGroupId } });
+    if (!group || group.status !== "RUNNING") return;
+
+    if (group.sourcesCompleted + group.sourcesErrored >= group.sourcesTotal) {
+      await completeRunGroup(runGroupId);
+    }
+  } catch (e) {
+    console.error(`Failed to check/complete run group ${runGroupId}:`, e);
   }
 }
 
@@ -200,6 +219,14 @@ export async function scoreAllLeads(orgId: string) {
   ]);
 
   const propertyAreas = [...new Set(properties.map((p) => p.area))];
+
+  const allPriceMins = properties.map((p) => p.priceMin).filter((v): v is bigint => v != null);
+  const allPriceMaxs = properties.map((p) => p.priceMax).filter((v): v is bigint => v != null);
+  const priceRange = {
+    min: allPriceMins.length > 0 ? Number(allPriceMins.reduce((a, b) => a < b ? a : b)) / 100000 : null,
+    max: allPriceMaxs.length > 0 ? Number(allPriceMaxs.reduce((a, b) => a > b ? a : b)) / 100000 : null,
+  };
+
   let scored = 0;
   let matched = 0;
 
@@ -214,7 +241,7 @@ export async function scoreAllLeads(orgId: string) {
         timeline: lead.timeline,
         platform: lead.platform,
         buyerPersona: lead.buyerPersona,
-      }, propertyAreas);
+      }, propertyAreas, priceRange);
 
       await db.lead.update({
         where: { id: lead.id },
@@ -330,6 +357,13 @@ async function autoScoreAndNotify(orgId: string, leadId: string, tier: PlanTier)
 
     const propertyAreas = [...new Set(properties.map((p) => p.area))];
 
+    const priceMins = properties.map((p) => p.priceMin).filter((v): v is bigint => v != null);
+    const priceMaxs = properties.map((p) => p.priceMax).filter((v): v is bigint => v != null);
+    const priceRange = {
+      min: priceMins.length > 0 ? Number(priceMins.reduce((a, b) => a < b ? a : b)) / 100000 : null,
+      max: priceMaxs.length > 0 ? Number(priceMaxs.reduce((a, b) => a > b ? a : b)) / 100000 : null,
+    };
+
     const scoreResult = await scoreLead({
       originalText: lead.originalText,
       budget: lead.budget,
@@ -337,7 +371,7 @@ async function autoScoreAndNotify(orgId: string, leadId: string, tier: PlanTier)
       timeline: lead.timeline,
       platform: lead.platform,
       buyerPersona: lead.buyerPersona,
-    }, propertyAreas);
+    }, propertyAreas, priceRange);
 
     await db.lead.update({
       where: { id: lead.id },
@@ -455,12 +489,18 @@ async function fetchPosts(
       return tweets.map((t) => ({ text: t.text, author: t.author, authorId: t.authorId, url: t.url, profileUrl: `https://x.com/${t.author}` }));
     }
     case "YOUTUBE": {
-      const comments = await scrapeYouTubeComments(keywords.length > 0 ? `${identifier} ${keywords[0]}` : identifier, 15);
+      // Deduplicate: if keywords[0] is already part of the identifier, skip it
+      // to avoid queries like "hyderabad property review hyderabad"
+      const firstKeyword = keywords[0]?.toLowerCase() ?? "";
+      const query = (keywords.length > 0 && !identifier.toLowerCase().includes(firstKeyword))
+        ? `${identifier} ${keywords[0]}`
+        : identifier;
+      const comments = await scrapeYouTubeComments(query, 15);
       return comments.map((c) => ({ text: c.text, author: c.author, authorId: c.authorId, url: c.videoUrl }));
     }
     case "LINKEDIN": {
       const posts = await scrapeLinkedIn(identifier, keywords, 10);
-      return posts.map((p) => ({ text: p.text, author: p.author, authorId: p.authorId, url: p.url, profileUrl: p.authorId }));
+      return posts.map((p) => ({ text: p.text, author: p.author, authorId: p.authorId, url: p.url, profileUrl: p.profileUrl }));
     }
     case "QUORA": {
       const questions = await scrapeQuora(identifier, keywords, 10);

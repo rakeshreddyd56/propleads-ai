@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoreBadge } from "./score-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle, Link2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle, Link2, StickyNote, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export function LeadDetail({ lead: initialLead }: { lead: any }) {
@@ -20,6 +22,11 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
   const [matching, setMatching] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [clustering, setClustering] = useState(false);
+  const [notes, setNotes] = useState(initialLead.notes ?? "");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [editingScore, setEditingScore] = useState(false);
+  const [manualScore, setManualScore] = useState(String(initialLead.score ?? 0));
+  const [savingScore, setSavingScore] = useState(false);
 
   async function refreshLead() {
     try {
@@ -112,7 +119,32 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
             )}
           </div>
         </div>
-        <ScoreBadge score={lead.score} tier={lead.tier} />
+        <div className="flex items-center gap-2">
+          {editingScore ? (
+            <div className="flex items-center gap-1.5">
+              <Input type="number" min={0} max={100} value={manualScore} onChange={(e) => setManualScore(e.target.value)} className="w-16 h-8 text-sm text-center" />
+              <Button size="sm" variant="outline" className="h-8 text-xs" disabled={savingScore} onClick={async () => {
+                const s = Number(manualScore);
+                if (isNaN(s) || s < 0 || s > 100) { toast.error("Score must be 0-100"); return; }
+                setSavingScore(true);
+                try {
+                  const res = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score: s }) });
+                  if (res.ok) { toast.success("Score updated"); setEditingScore(false); await refreshLead(); }
+                  else toast.error("Failed to update score");
+                } catch { toast.error("Failed to update score"); }
+                finally { setSavingScore(false); }
+              }}>
+                {savingScore ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setEditingScore(false); setManualScore(String(lead.score ?? 0)); }}>Cancel</Button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingScore(true)} className="group relative" title="Click to manually override score">
+              <ScoreBadge score={lead.score} tier={lead.tier} />
+              <Pencil className="absolute -top-1 -right-1 h-3 w-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-2">
@@ -137,7 +169,8 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
             window.open(`mailto:${lead.email}?subject=${subject}&body=${body}`);
           }}><Mail className="mr-1 h-3 w-3" /> Email</Button>
         )}
-        <Button size="sm" variant="outline" onClick={enrichContact} disabled={enriching}>
+        <Button size="sm" variant="outline" onClick={enrichContact} disabled={enriching}
+          title="Find email, phone, and company info (Pro plan)">
           {enriching ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />} Enrich Contact
         </Button>
         <Button size="sm" variant="outline" onClick={async () => {
@@ -186,6 +219,39 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Notes */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <StickyNote className="h-4 w-4 text-amber-500" />
+            <p className="text-sm font-medium">Notes</p>
+          </div>
+          <Textarea
+            placeholder="Add notes about this lead... (e.g., spoke to wife, wants Vastu-compliant, referred by Ramesh)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="min-h-[60px] text-sm"
+          />
+          {notes !== (lead.notes ?? "") && (
+            <Button size="sm" className="mt-2" disabled={savingNotes} onClick={async () => {
+              setSavingNotes(true);
+              try {
+                const res = await fetch(`/api/leads/${lead.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ notes }),
+                });
+                if (res.ok) { toast.success("Notes saved"); await refreshLead(); }
+                else toast.error("Failed to save notes");
+              } catch { toast.error("Failed to save notes"); }
+              finally { setSavingNotes(false); }
+            }}>
+              {savingNotes ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null} Save Notes
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="intent">
         <TabsList>

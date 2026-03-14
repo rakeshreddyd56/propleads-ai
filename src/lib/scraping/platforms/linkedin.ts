@@ -11,6 +11,7 @@ export interface LinkedInPost {
   authorId: string;
   authorTitle: string;
   url: string;
+  profileUrl?: string;
   timestamp: string;
   likes: number;
   comments: number;
@@ -92,15 +93,33 @@ async function scrapeViaFirecrawl(searchQuery: string, keywords: string[], limit
 
   return results
     .filter((r) => r.url?.includes("linkedin.com"))
-    .map((r) => ({
-      id: `li-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
-      text: r.markdown?.slice(0, 2000) ?? r.title ?? "",
-      author: r.title?.split(" - ")?.[0] ?? "LinkedIn User",
-      authorId: r.url,
-      authorTitle: "",
-      url: r.url,
-      timestamp: new Date().toISOString(),
-      likes: 0,
-      comments: 0,
-    }));
+    .map((r) => {
+      const author = r.title?.split(" - ")?.[0]?.trim() ?? "LinkedIn User";
+      // Extract a stable author identifier from the author name (slug-ified)
+      // instead of using the post URL as authorId
+      const authorSlug = author
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "");
+      // Try to extract LinkedIn profile URL from the post URL
+      // LinkedIn post URLs often look like: linkedin.com/posts/username_activity-...
+      const profileMatch = r.url?.match(/linkedin\.com\/posts\/([^_]+)/);
+      const profileHandle = profileMatch?.[1];
+      const profileUrl = profileHandle
+        ? `https://www.linkedin.com/in/${profileHandle}`
+        : undefined;
+
+      return {
+        id: `li-${Buffer.from(r.url).toString("base64").slice(0, 12)}`,
+        text: r.markdown?.slice(0, 2000) ?? r.title ?? "",
+        author,
+        authorId: profileHandle ?? (authorSlug || `li-user-${Buffer.from(r.url).toString("base64").slice(0, 8)}`),
+        authorTitle: "",
+        url: r.url,
+        profileUrl,
+        timestamp: new Date().toISOString(),
+        likes: 0,
+        comments: 0,
+      };
+    });
 }

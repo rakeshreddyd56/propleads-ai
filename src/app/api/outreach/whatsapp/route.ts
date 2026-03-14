@@ -29,10 +29,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: compliance.reason }, { status: 403 });
   }
 
+  // Substitute template variables in parameters array with lead data
+  const vars: Record<string, string> = {
+    "{{name}}": lead.name ?? "",
+    "{{email}}": lead.email ?? "",
+    "{{phone}}": lead.phone ?? "",
+    "{{area}}": (lead.preferredArea ?? []).join(", "),
+    "{{budget}}": lead.budget ?? "",
+  };
+  const resolvedParameters = Array.isArray(parameters)
+    ? parameters.map((param: string) => {
+        let resolved = param;
+        for (const [key, value] of Object.entries(vars)) {
+          resolved = resolved.replaceAll(key, value);
+        }
+        return resolved;
+      })
+    : parameters;
+
   const result = await sendWhatsAppTemplate({
     phoneNumber: lead.phone,
     templateName,
-    parameters,
+    parameters: resolvedParameters,
     mediaUrl,
   });
 

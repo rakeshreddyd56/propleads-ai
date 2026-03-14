@@ -32,14 +32,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: compliance.reason }, { status: 403 });
   }
 
-  const result = await sendEmail({ to: lead.email, subject, html });
+  // Substitute template variables with lead data
+  const vars: Record<string, string> = {
+    "{{name}}": lead.name ?? "",
+    "{{email}}": lead.email ?? "",
+    "{{phone}}": lead.phone ?? "",
+    "{{area}}": (lead.preferredArea ?? []).join(", "),
+    "{{budget}}": lead.budget ?? "",
+  };
+  let resolvedSubject = subject;
+  let resolvedHtml = html;
+  for (const [key, value] of Object.entries(vars)) {
+    resolvedSubject = resolvedSubject.replaceAll(key, value);
+    resolvedHtml = resolvedHtml.replaceAll(key, value);
+  }
+
+  // Append opt-out footer (Issue #28)
+  const optOutFooter = `<br/><hr style="margin-top:24px;border:none;border-top:1px solid #ddd"/><p style="font-size:11px;color:#999;margin-top:8px">To opt out of future communications, reply STOP.</p>`;
+  resolvedHtml += optOutFooter;
+
+  const result = await sendEmail({ to: lead.email, subject: resolvedSubject, html: resolvedHtml });
 
   await db.outreachEvent.create({
     data: {
       leadId,
       channel: "EMAIL",
       direction: "OUTBOUND",
-      content: html,
+      content: resolvedHtml,
       status: result.success ? "SENT" : "FAILED",
       sentAt: result.success ? new Date() : undefined,
       metadata: result as any,

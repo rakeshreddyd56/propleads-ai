@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, IndianRupee, Calendar, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, IndianRupee, Calendar, Shield, FileText } from "lucide-react";
 import { PropertyActions } from "@/components/properties/property-actions";
 
-function formatPrice(paise: bigint | null): string {
-  if (!paise) return "N/A";
+function formatPrice(paise: bigint | number | null): string {
+  if (!paise || Number(paise) === 0) return "";
   const lakhs = Number(paise) / 100000;
   if (lakhs >= 100) return `${(lakhs / 100).toFixed(1)} Cr`;
   return `${lakhs.toFixed(0)} L`;
@@ -35,7 +36,14 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={property.status === "ACTIVE" ? "default" : "secondary"} className="text-sm">{property.status === "ACTIVE" ? "Active" : property.status === "SOLD_OUT" ? "Sold Out" : property.status?.replace(/_/g, " ") ?? property.status}</Badge>
-          <PropertyActions propertyId={property.id} />
+          {property.brochureUrl && (
+            <a href={property.brochureUrl} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm">
+                <FileText className="mr-2 h-4 w-4" /> View Brochure
+              </Button>
+            </a>
+          )}
+          <PropertyActions propertyId={property.id} property={property} />
         </div>
       </div>
 
@@ -53,7 +61,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <CardContent className="flex items-center gap-3 p-4">
             <IndianRupee className="h-6 w-6 text-green-500" />
             <div>
-              <p className="font-medium">{formatPrice(property.priceMin)} — {formatPrice(property.priceMax)}</p>
+              <p className="font-medium">{formatPrice(property.priceMin) && formatPrice(property.priceMax) ? `${formatPrice(property.priceMin)} — ${formatPrice(property.priceMax)}` : formatPrice(property.priceMin) || formatPrice(property.priceMax) || "Price on Request"}</p>
               <p className="text-xs text-zinc-500">Price Range</p>
             </div>
           </CardContent>
@@ -86,7 +94,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               <div key={i} className="flex items-center justify-between rounded-lg border p-3">
                 <span className="font-medium">{u.type}</span>
                 <span className="text-sm text-zinc-500">{u.sizeSqft} sqft</span>
-                <span className="font-medium text-green-600">₹{(u.priceINR / 100000).toFixed(0)}L</span>
+                <span className="font-medium text-green-600">{u.priceINR ? `₹${(u.priceINR / 100000).toFixed(0)}L` : "Price TBD"}</span>
               </div>
             ))}
           </CardContent>

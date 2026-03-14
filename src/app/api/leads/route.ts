@@ -35,10 +35,22 @@ export async function GET(req: NextRequest) {
     ];
   }
 
-  const [leads, total] = await Promise.all([
+  // Sort parameter
+  const sortParam = url.searchParams.get("sort");
+  const validSorts: Record<string, any> = {
+    score_desc: { score: "desc" },
+    score_asc: { score: "asc" },
+    date_desc: { createdAt: "desc" },
+    date_asc: { createdAt: "asc" },
+    name_asc: { name: "asc" },
+    budget_desc: { budgetMax: "desc" },
+  };
+  const orderBy = validSorts[sortParam ?? ""] ?? { score: "desc" };
+
+  const [leads, total, tierCounts] = await Promise.all([
     db.lead.findMany({
       where,
-      orderBy: { score: "desc" },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
       include: {
@@ -47,6 +59,7 @@ export async function GET(req: NextRequest) {
       },
     }),
     db.lead.count({ where }),
+    db.lead.groupBy({ by: ["tier"], where: { ...where, tier: undefined }, _count: true }),
   ]);
 
   // Convert BigInt to Number for JSON serialization
@@ -66,5 +79,8 @@ export async function GET(req: NextRequest) {
     })),
   }));
 
-  return NextResponse.json({ leads: serialized, total: Number(total), page, limit });
+  const tierCountMap: Record<string, number> = {};
+  tierCounts.forEach((t) => { tierCountMap[t.tier ?? "UNSCORED"] = t._count; });
+
+  return NextResponse.json({ leads: serialized, total: Number(total), page, limit, tierCounts: tierCountMap });
 }

@@ -258,7 +258,7 @@ export function formatMagicBricksInput(city: string, keywords: string[], limit: 
 export function formatNoBrokerInput(city: string, keywords: string[], limit: number) {
   return {
     startUrls: [{
-      url: `https://www.nobroker.in/property/sale/${city.toLowerCase()}/${city}?searchParam=W3sibGF0IjoiMTcuMzg1MDQ0IiwibG9uIjoiNzguNDg2NjcxIiwicGxhY2VJZCI6IkNoSUpxNHAxdUFfTnlqc1I0bUdOaVM5Z2tKWSIsInBsYWNlTmFtZSI6Ikh5ZGVyYWJhZCJ9XQ==&orderBy=rent&orderType=asc`,
+      url: `https://www.nobroker.in/property/sale/${city.toLowerCase()}/${city}?searchParam=W3sibGF0IjoiMTcuMzg1MDQ0IiwibG9uIjoiNzguNDg2NjcxIiwicGxhY2VJZCI6IkNoSUpxNHAxdUFfTnlqc1I0bUdOaVM5Z2tKWSIsInBsYWNlTmFtZSI6Ikh5ZGVyYWJhZCJ9XQ==&orderBy=price&orderType=asc`,
     }],
     maxItems: limit,
   };

@@ -49,6 +49,11 @@ Hyderabad areas to look for: Gachibowli, Kondapur, Madhapur, HITEC City, Kokapet
 
 Budget conversion: 1L = 1 lakh = 100,000 INR, 1Cr = 1 crore = 10,000,000 INR
 
+IMPORTANT RULES:
+- preferredAreas: ONLY include areas the person EXPLICITLY mentions wanting to buy in. Do NOT list areas mentioned in answers/replies by others. If the person asks "which area is best?" without naming specific areas, return an empty array []. Maximum 5 areas.
+- If the post is a QUESTION asking for advice (e.g., "where should I buy?"), the person IS a property seeker (isPropertySeeker=true) but their preferred areas are empty unless they name specific ones.
+- confidence should be HIGH (0.8+) when someone states clear budget + intent to buy. Don't penalize anonymous platforms (Quora, Reddit) — focus on the content, not the author.
+
 Return JSON:
 {
   "isPropertySeeker": true/false (true if this person wants to BUY or RENT a property),
@@ -78,6 +83,11 @@ Post: "${text.slice(0, 2000)}"
 Areas: Gachibowli, Kondapur, Madhapur, HITEC City, Kokapet, Narsingi, Financial District, Tellapur, Kollur, Shamshabad, Kompally, Miyapur, Kukatpally, Manikonda, Bachupally, Jubilee Hills, Banjara Hills, Uppal, LB Nagar, Secunderabad, Begumpet, Ameerpet, Tolichowki, Nallagandla, Gopanpally, Lingampally, Nizampet, Pragathi Nagar, Chandanagar, Rajendra Nagar, Attapur, Mehdipatnam, Adibatla, Medchal, Patancheru, Puppalaguda, Nanakramguda, Khajaguda, Gandipet, Shadnagar, Dundigal, Appa Junction.
 
 Budget: 1L = 100,000 INR, 1Cr = 10,000,000 INR
+
+IMPORTANT RULES:
+- preferredAreas: ONLY include areas the person EXPLICITLY mentions wanting to buy in. Do NOT list areas mentioned in answers/replies by others. If the person asks "which area is best?" without naming specific areas, return an empty array []. Maximum 5 areas.
+- If the post is a QUESTION asking for advice (e.g., "where should I buy?"), the person IS a property seeker (isPropertySeeker=true) but their preferred areas are empty unless they name specific ones.
+- confidence should be HIGH (0.8+) when someone states clear budget + intent to buy. Don't penalize anonymous platforms (Quora, Reddit) — focus on the content, not the author.
 
 Return JSON:
 {

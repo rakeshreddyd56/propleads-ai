@@ -44,9 +44,11 @@ function mapApifyPost(item: any): InstagramPost | null {
   if (!caption || caption.length < 10) return null;
 
   const username = item.ownerUsername || item.username || item.author || "unknown";
-  const postUrl = item.url || item.shortCode
-    ? `https://www.instagram.com/p/${item.shortCode}/`
-    : item.inputUrl || "";
+  const postUrl = item.url
+    ? item.url
+    : item.shortCode
+      ? `https://www.instagram.com/p/${item.shortCode}/`
+      : item.inputUrl || "";
 
   // Extract comments if available
   const comments: { text: string; author: string }[] = [];

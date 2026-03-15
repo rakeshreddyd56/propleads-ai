@@ -486,7 +486,7 @@ async function fetchPosts(
     }
     case "TWITTER": {
       const tweets = await scrapeTwitter(identifier, keywords, 10);
-      return tweets.map((t) => ({ text: t.text, author: t.author, authorId: t.authorId, url: t.url, profileUrl: `https://x.com/${t.author}` }));
+      return tweets.map((t) => ({ text: t.text, author: t.author, authorId: t.authorId, url: t.url, profileUrl: `https://x.com/${t.authorId}` }));
     }
     case "YOUTUBE": {
       // Deduplicate: if keywords[0] is already part of the identifier, skip it

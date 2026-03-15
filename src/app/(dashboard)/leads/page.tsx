@@ -82,10 +82,22 @@ function formatBudget(budget: string | null, min: number | null, max: number | n
 function tierConfig(tier: string) {
   switch (tier) {
     case "HOT": return { bg: "bg-red-500", text: "text-red-600", label: "Hot" };
-    case "WARM": return { bg: "bg-orange-500", text: "text-orange-600", label: "Warm" };
-    case "COLD": return { bg: "bg-blue-400", text: "text-blue-500", label: "Cold" };
+    case "WARM": return { bg: "bg-amber-500", text: "text-amber-600", label: "Warm" };
+    case "COLD": return { bg: "bg-slate-400", text: "text-zinc-500", label: "Cold" };
     default: return { bg: "bg-zinc-300", text: "text-zinc-500", label: "" };
   }
+}
+
+/** Strip web page chrome from scraped text for preview */
+function cleanPreviewText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/Skip to (?:content|search|navigation|main)/gi, "")
+    .replace(/\[Go to .+?\]\(.+?\)/g, "")
+    .replace(/Sign [Ii]n/g, "")
+    .replace(/Something went wrong\..+?try again\./gi, "")
+    .replace(/\n{2,}/g, " ")
+    .trim();
 }
 
 export default function LeadsPage() {
@@ -184,7 +196,7 @@ export default function LeadsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div data-tour="leads-header" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div data-tour="leads-header" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm text-zinc-500">{total} leads found across all sources</p>
@@ -211,12 +223,7 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="text-[10px] text-zinc-400 flex gap-4">
-        <span><strong>Score</strong> = AI quality rating (0-100)</span>
-        <span><strong>Tier</strong> = HOT (75+) / WARM (40-74) / COLD (&lt;40)</span>
-        <span><strong>Status</strong> = Sales pipeline stage (New → Converted)</span>
-      </div>
+      {/* Tier Legend */}
       <div data-tour="tier-filters" className="flex gap-3">
         {(["HOT", "WARM", "COLD"] as const).map((t) => {
           const { bg, text } = tierConfig(t);
@@ -350,9 +357,11 @@ export default function LeadsPage() {
                     </div>
 
                     {/* Row 3: What they said */}
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-2">
-                      {lead.originalText?.slice(0, 200)}
-                    </p>
+                    {lead.originalText && (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-2">
+                        {cleanPreviewText(lead.originalText).slice(0, 200)}
+                      </p>
+                    )}
 
                     {/* Row 4: Key details as pills */}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">

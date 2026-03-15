@@ -123,32 +123,32 @@ export function PropertyActions({ propertyId, property }: { propertyId: string; 
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">Project Name</Label>
+              <Label className="text-sm font-medium">Project Name</Label>
               <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Builder Name</Label>
+                <Label className="text-sm font-medium">Builder Name</Label>
                 <Input value={form.builderName} onChange={(e) => setForm((f) => ({ ...f, builderName: e.target.value }))} />
               </div>
               <div>
-                <Label className="text-xs">RERA Number</Label>
+                <Label className="text-sm font-medium">RERA Number</Label>
                 <Input value={form.reraNumber} onChange={(e) => setForm((f) => ({ ...f, reraNumber: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Location</Label>
+                <Label className="text-sm font-medium">Location</Label>
                 <Input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
               </div>
               <div>
-                <Label className="text-xs">Area / Micro-market</Label>
+                <Label className="text-sm font-medium">Area / Micro-market</Label>
                 <Input value={form.area} onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Price Min (Lakhs)</Label>
+                <Label className="text-sm font-medium">Price Min (Lakhs)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -159,7 +159,7 @@ export function PropertyActions({ propertyId, property }: { propertyId: string; 
                 />
               </div>
               <div>
-                <Label className="text-xs">Price Max (Lakhs)</Label>
+                <Label className="text-sm font-medium">Price Max (Lakhs)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -172,7 +172,7 @@ export function PropertyActions({ propertyId, property }: { propertyId: string; 
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Status</Label>
+                <Label className="text-sm font-medium">Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v ?? f.status }))}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
@@ -185,7 +185,7 @@ export function PropertyActions({ propertyId, property }: { propertyId: string; 
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Property Type</Label>
+                <Label className="text-sm font-medium">Property Type</Label>
                 <Select value={form.propertyType} onValueChange={(v) => setForm((f) => ({ ...f, propertyType: v ?? f.propertyType }))}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
@@ -199,11 +199,11 @@ export function PropertyActions({ propertyId, property }: { propertyId: string; 
               </div>
             </div>
             <div>
-              <Label className="text-xs">Possession Date</Label>
+              <Label className="text-sm font-medium">Possession Date</Label>
               <Input type="date" value={form.possessionDate} onChange={(e) => setForm((f) => ({ ...f, possessionDate: e.target.value }))} />
             </div>
             <div>
-              <Label className="text-xs">Description</Label>
+              <Label className="text-sm font-medium">Description</Label>
               <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="min-h-[80px]" />
             </div>
           </div>

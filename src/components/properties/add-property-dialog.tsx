@@ -105,7 +105,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">Project Name *</Label>
+            <Label className="text-sm font-medium">Project Name *</Label>
             <Input
               placeholder="e.g. My Home Tridasa"
               value={form.name}
@@ -114,7 +114,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Builder Name</Label>
+              <Label className="text-sm font-medium">Builder Name</Label>
               <Input
                 placeholder="e.g. My Home Group"
                 value={form.builderName}
@@ -122,7 +122,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
               />
             </div>
             <div>
-              <Label className="text-xs">RERA Number</Label>
+              <Label className="text-sm font-medium">RERA Number</Label>
               <Input
                 placeholder="e.g. P02400003488"
                 value={form.reraNumber}
@@ -132,7 +132,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Area / Micro-market *</Label>
+              <Label className="text-sm font-medium">Area / Micro-market *</Label>
               <Input
                 placeholder="e.g. Kokapet"
                 value={form.area}
@@ -140,7 +140,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
               />
             </div>
             <div>
-              <Label className="text-xs">Location *</Label>
+              <Label className="text-sm font-medium">Location *</Label>
               <Input
                 placeholder="Hyderabad"
                 value={form.location}
@@ -149,7 +149,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
             </div>
           </div>
           <div>
-            <Label className="text-xs">Property Type</Label>
+            <Label className="text-sm font-medium">Property Type</Label>
             <Select value={form.propertyType} onValueChange={(v) => setForm((f) => ({ ...f, propertyType: v ?? f.propertyType }))}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -163,7 +163,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Price Min (Lakhs)</Label>
+              <Label className="text-sm font-medium">Price Min (Lakhs)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -174,7 +174,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
               />
             </div>
             <div>
-              <Label className="text-xs">Price Max (Lakhs)</Label>
+              <Label className="text-sm font-medium">Price Max (Lakhs)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -186,7 +186,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
             </div>
           </div>
           <div>
-            <Label className="text-xs">Possession Date</Label>
+            <Label className="text-sm font-medium">Possession Date</Label>
             <Input
               type="date"
               value={form.possessionDate}
@@ -194,7 +194,7 @@ export function AddPropertyDialog({ onAdded }: { onAdded?: () => void }) {
             />
           </div>
           <div>
-            <Label className="text-xs">Description</Label>
+            <Label className="text-sm font-medium">Description</Label>
             <Textarea
               placeholder="Brief description of the property..."
               value={form.description}

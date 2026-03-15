@@ -222,7 +222,7 @@ export default function OutreachPage() {
 
   return (
     <div className="space-y-6">
-      <div data-tour="outreach-header" className="flex items-center justify-between">
+      <div data-tour="outreach-header" className="flex items-center justify-between border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold">Outreach</h1>
           <p className="text-sm text-zinc-500">Manage templates, campaigns, and track outreach</p>

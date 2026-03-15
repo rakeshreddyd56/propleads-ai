@@ -34,7 +34,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="border-b pb-4 mb-2">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm text-zinc-500">Your real estate lead intelligence at a glance</p>
       </div>

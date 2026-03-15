@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 
 interface SourceData {
   platform: string;
@@ -18,12 +18,14 @@ export function SourceChart({ data }: { data: SourceData[] }) {
         {data.length === 0 ? (
           <p className="text-sm text-zinc-400">No data yet</p>
         ) : (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data}>
               <XAxis dataKey="platform" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} interval={0} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="count" fill="#f97316" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill="#60a5fa" radius={[4, 4, 0, 0]}>
+                <LabelList dataKey="count" position="top" className="text-xs fill-zinc-500" />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}

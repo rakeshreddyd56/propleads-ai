@@ -28,5 +28,22 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   if (!lead) notFound();
 
-  return <LeadDetail lead={lead} />;
+  // Convert BigInt fields to Number for client component serialization
+  const serialized = {
+    ...lead,
+    budgetMin: lead.budgetMin ? Number(lead.budgetMin) : null,
+    budgetMax: lead.budgetMax ? Number(lead.budgetMax) : null,
+    matches: lead.matches.map((m) => ({
+      ...m,
+      property: m.property
+        ? {
+            ...m.property,
+            priceMin: m.property.priceMin ? Number(m.property.priceMin) : null,
+            priceMax: m.property.priceMax ? Number(m.property.priceMax) : null,
+          }
+        : m.property,
+    })),
+  };
+
+  return <LeadDetail lead={serialized} />;
 }

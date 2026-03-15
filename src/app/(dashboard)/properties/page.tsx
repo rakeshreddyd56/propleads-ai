@@ -72,10 +72,10 @@ export default function PropertiesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold">Properties</h1>
-          <p className="text-sm text-zinc-500">{properties.length} properties in your portfolio</p>
+          <p className="text-sm text-zinc-500">{properties.length} propert{properties.length === 1 ? "y" : "ies"} in your portfolio</p>
         </div>
         <div className="flex items-center gap-2">
           <AddPropertyDialog onAdded={fetchProperties} />
@@ -110,13 +110,13 @@ export default function PropertiesPage() {
 
       {properties.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-20">
-          <Building2 className="mb-4 h-12 w-12 text-zinc-300" />
+          <Building2 className="mb-4 h-8 w-8 text-zinc-300" />
           <p className="text-lg font-medium text-zinc-500">No properties yet</p>
           <p className="text-sm text-zinc-400">Upload a brochure or add a property manually to get started</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-20">
-          <Search className="mb-4 h-12 w-12 text-zinc-300" />
+          <Search className="mb-4 h-8 w-8 text-zinc-300" />
           <p className="text-lg font-medium text-zinc-500">No properties match your filters</p>
           <p className="text-sm text-zinc-400">Try adjusting your search or status filter</p>
         </div>

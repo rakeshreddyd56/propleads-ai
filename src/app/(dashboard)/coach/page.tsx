@@ -95,23 +95,31 @@ function PlaybookGenerator() {
   );
 }
 
+const tabDescriptions: Record<string, string> = {
+  analyze: "Paste a conversation with a lead and get AI feedback on your approach, objection handling, and next steps.",
+  generate: "Quickly generate a personalized message for a lead based on their profile and your intent.",
+  playbook: "Create a full sales playbook for a specific lead-property match with talking points and objection scripts.",
+};
+
 function CoachContent() {
   const searchParams = useSearchParams();
   const leadId = searchParams.get("leadId") ?? undefined;
+  const [activeTab, setActiveTab] = useState("analyze");
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="border-b pb-4">
         <h1 className="text-2xl font-bold">AI Conversation Coach</h1>
         <p className="text-sm text-zinc-500">Get AI-powered sales coaching tailored to Hyderabad real estate</p>
       </div>
 
-      <Tabs defaultValue="analyze">
+      <Tabs defaultValue="analyze" value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="analyze" data-tour="coach-analyze">Analyze Conversation</TabsTrigger>
           <TabsTrigger value="generate" data-tour="coach-generate">Quick Message</TabsTrigger>
           <TabsTrigger value="playbook" data-tour="coach-playbook">Generate Playbook</TabsTrigger>
         </TabsList>
+        <p className="text-xs text-zinc-500 mt-2 mb-1">{tabDescriptions[activeTab]}</p>
         <TabsContent value="analyze">
           <ChatInterface leadId={leadId} />
         </TabsContent>

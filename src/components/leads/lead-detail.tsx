@@ -11,8 +11,9 @@ import { ScoreBadge } from "./score-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle, Link2, StickyNote, Pencil } from "lucide-react";
+import { ExternalLink, RefreshCw, MessageSquare, Mail, Phone, Loader2, Sparkles, Building2, Briefcase, CheckCircle, Link2, StickyNote, Pencil, ArrowLeft, Calendar, Home } from "lucide-react";
 import { toast } from "sonner";
+import { formatRelativeTime } from "@/lib/utils/format";
 
 export function LeadDetail({ lead: initialLead }: { lead: any }) {
   const router = useRouter();
@@ -84,8 +85,25 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
     SITE_VISIT: "Site Visit", NEGOTIATION: "Negotiation", CONVERTED: "Converted", LOST: "Lost",
   };
 
+  function formatBudgetRange(min: number | null, max: number | null) {
+    if (!min && !max) return null;
+    const fmt = (n: number) => {
+      if (n >= 10000000) return `${(n / 10000000).toFixed(1)} Cr`;
+      if (n >= 100000) return `${(n / 100000).toFixed(1)} L`;
+      return `₹${n.toLocaleString("en-IN")}`;
+    };
+    if (min && max) return `₹${fmt(min)} - ₹${fmt(max)}`;
+    if (min) return `₹${fmt(min)}+`;
+    if (max) return `Up to ₹${fmt(max)}`;
+    return null;
+  }
+
   return (
     <div className="space-y-6">
+      <Button variant="ghost" size="sm" className="gap-1 -ml-2 text-zinc-500" onClick={() => router.back()}>
+        <ArrowLeft className="h-4 w-4" /> Back to Leads
+      </Button>
+
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{lead.name ?? "Unknown Lead"}</h1>
@@ -118,6 +136,13 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
               </a>
             )}
           </div>
+          <div className="mt-1.5 flex items-center gap-3 text-[11px] text-zinc-400">
+            {lead.createdAt && <span>Added {formatRelativeTime(lead.createdAt)}</span>}
+            {lead.lastSeenAt && <span>Last seen {formatRelativeTime(lead.lastSeenAt)}</span>}
+            {lead.propertyType && (
+              <span className="flex items-center gap-0.5"><Home className="h-3 w-3" /> {lead.propertyType}</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {editingScore ? (
@@ -147,7 +172,7 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={rescore} disabled={scoring}>
           {scoring ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />} Re-score
         </Button>
@@ -268,11 +293,14 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
               <CardContent><p className="text-sm whitespace-pre-wrap">{lead.originalText}</p></CardContent>
             </Card>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-zinc-500 mb-1">Budget</p>
                 <p className="font-medium">{lead.budget ?? "Not specified"}</p>
+                {formatBudgetRange(lead.budgetMin, lead.budgetMax) && (
+                  <p className="text-xs text-zinc-400 mt-0.5">Range: {formatBudgetRange(lead.budgetMin, lead.budgetMax)}</p>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -293,6 +321,18 @@ export function LeadDetail({ lead: initialLead }: { lead: any }) {
               <CardContent className="p-4">
                 <p className="text-xs text-zinc-500 mb-1">Buyer Persona</p>
                 <p className="font-medium">{lead.buyerPersona?.replace(/_/g, " ") ?? "Unknown"}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-zinc-500 mb-1">Property Type</p>
+                <p className="font-medium">{lead.propertyType ?? "Not specified"}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-zinc-500 mb-1">First Seen</p>
+                <p className="font-medium">{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Unknown"}</p>
               </CardContent>
             </Card>
           </div>

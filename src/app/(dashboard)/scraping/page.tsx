@@ -246,28 +246,30 @@ export default function ScrapingPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div data-tour="sources-header" className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
+      <div data-tour="sources-header" className="border-b pb-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
             <h1 className="text-2xl font-bold">Lead Sources</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">
+              {activeSources} active source{activeSources !== 1 ? "s" : ""} · {totalLeads} leads from last run
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
             <Badge variant={tier === "FREE" ? "secondary" : tier === "PRO" ? "default" : "outline"} className="text-xs">
-              {tier} Plan
+              {tier}
             </Badge>
-            <span className="text-sm text-zinc-500">
-              {runsToday}/{maxRuns} runs today
+            <span className="text-xs text-zinc-500 tabular-nums">
+              {runsToday}/{maxRuns >= 999 ? "∞" : maxRuns} runs today
             </span>
           </div>
-          <p className="text-sm text-zinc-500">
-            {activeSources} active / {sources.length} total sources · {totalLeads} leads last run
-          </p>
         </div>
         <div className="flex gap-2">
-          <Button data-tour="run-all" variant="outline" onClick={runAll} disabled={runningAll}>
-            {runningAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-            {runningAll ? "Running..." : "Run All Sources"}
+          <Button data-tour="run-all" variant="outline" size="sm" onClick={runAll} disabled={runningAll}>
+            {runningAll ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Play className="mr-2 h-3.5 w-3.5" />}
+            {runningAll ? "Running..." : "Run All"}
           </Button>
-          <Button data-tour="score-match" variant="outline" onClick={scoreLeads} disabled={scoring}>
-            {scoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+          <Button data-tour="score-match" variant="outline" size="sm" onClick={scoreLeads} disabled={scoring}>
+            {scoring ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
             {scoring ? "Scoring..." : "Score & Match"}
           </Button>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -332,7 +334,7 @@ export default function ScrapingPage() {
         </div>
       ) : sources.length === 0 ? (
         <div className="flex flex-col items-center py-20 border-2 border-dashed rounded-xl">
-          <Globe className="mb-4 h-12 w-12 text-zinc-300" />
+          <Globe className="mb-4 h-8 w-8 text-zinc-300" />
           <p className="text-lg font-medium text-zinc-500">No sources configured</p>
           <p className="text-sm text-zinc-400">Sources will be auto-seeded when you reload</p>
         </div>
@@ -404,29 +406,19 @@ function SourceCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-lg">{config?.icon ?? "🌐"}</span>
-            <CardTitle className="text-base truncate">{s.displayName}</CardTitle>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            <Badge variant="outline" className="text-[10px]">{config?.label ?? s.platform}</Badge>
-            {requiresApify && <Badge variant="secondary" className="text-[10px]">Apify</Badge>}
-            {!requiresApify && s.platform === "REDDIT" && <Badge variant="default" className="text-[10px] bg-green-600">Free</Badge>}
-            {!requiresApify && s.platform === "COMMONFLOOR" && <Badge variant="default" className="text-[10px] bg-green-600">Free</Badge>}
-            {lastStatus === "COMPLETED" && (
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-            )}
-            {lastStatus === "FAILED" && (
-              <XCircle className="h-3.5 w-3.5 text-red-500" />
-            )}
+            <CardTitle className="text-sm truncate">{s.displayName}</CardTitle>
+            {lastStatus === "COMPLETED" && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
+            {lastStatus === "FAILED" && <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-zinc-400 hover:text-blue-500"
             onClick={onRun}
             disabled={isRunning || !s.isActive || isLocked}
-            title={isLocked ? "Upgrade to unlock this platform" : "Run this source"}
+            title={isLocked ? "Upgrade to unlock" : "Run"}
           >
             {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isLocked ? <Lock className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </Button>
@@ -436,41 +428,26 @@ function SourceCard({
           <Switch checked={s.isActive} onCheckedChange={onToggle} />
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex flex-wrap gap-1">
-          {s.keywords?.slice(0, 5).map((k: string) => (
-            <Badge key={k} variant="outline" className="text-[10px] px-1.5 py-0">{k}</Badge>
-          ))}
-          {(s.keywords?.length ?? 0) > 5 && (
-            <Badge variant="outline" className="text-[10px] text-zinc-400">+{s.keywords.length - 5}</Badge>
-          )}
-        </div>
+      <CardContent className="space-y-2.5">
+        {/* Keywords — show 3, collapsed */}
+        {s.keywords?.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {s.keywords.slice(0, 3).map((k: string) => (
+              <Badge key={k} variant="outline" className="text-[10px] px-1.5 py-0">{k}</Badge>
+            ))}
+            {s.keywords.length > 3 && (
+              <Badge variant="outline" className="text-[10px] text-zinc-400">+{s.keywords.length - 3}</Badge>
+            )}
+          </div>
+        )}
+        {/* Last run summary — single line */}
         <div className="flex items-center justify-between text-xs text-zinc-500">
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            <span>{s.lastRunAt ? new Date(s.lastRunAt).toLocaleString() : "Never run"}</span>
+            <span>{s.lastRunAt ? new Date(s.lastRunAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Never run"}</span>
           </div>
-          <span className="font-medium">{s.lastRunLeads ?? 0} leads</span>
+          <span className="font-medium tabular-nums">{s.lastRunLeads ?? 0} leads</span>
         </div>
-        {s.runs?.length > 0 && (
-          <div className="space-y-1 border-t pt-2">
-            {s.runs.slice(0, 2).map((r: any) => (
-              <div key={r.id} className="flex items-center justify-between text-[11px]">
-                <span className="text-zinc-400">{new Date(r.startedAt).toLocaleDateString()}</span>
-                <div className="flex items-center gap-2">
-                  <span>{r.postsScanned} scanned</span>
-                  <span className="font-medium">{r.leadsFound} leads</span>
-                  <Badge
-                    variant={r.status === "COMPLETED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"}
-                    className="text-[9px] px-1"
-                  >
-                    {r.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </CardContent>
     </Card>
   );

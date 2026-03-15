@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/utils/format";
 
 const platformMeta: Record<string, { label: string; icon: string; color: string }> = {
   REDDIT: { label: "Reddit", icon: "🔴", color: "bg-orange-100 text-orange-700" },
@@ -28,6 +29,11 @@ const platformMeta: Record<string, { label: string; icon: string; color: string 
   LINKEDIN: { label: "LinkedIn", icon: "💼", color: "bg-blue-100 text-blue-800" },
   YOUTUBE: { label: "YouTube", icon: "▶️", color: "bg-red-100 text-red-700" },
   TELEGRAM: { label: "Telegram", icon: "✈️", color: "bg-cyan-100 text-cyan-700" },
+};
+
+const statusLabels: Record<string, string> = {
+  NEW: "New", CONTACTED: "Contacted", ENGAGED: "Engaged", SITE_VISIT: "Site Visit",
+  NEGOTIATION: "Negotiation", CONVERTED: "Converted", LOST: "Lost", NURTURE: "Nurture",
 };
 
 function getSourceLabel(url: string | null, platform: string): string {
@@ -52,7 +58,6 @@ function getSourceLabel(url: string | null, platform: string): string {
     if (platform === "YOUTUBE") {
       return "YouTube";
     }
-    // For portals, just show domain
     const domain = new URL(url).hostname.replace("www.", "");
     return domain;
   } catch {
@@ -85,18 +90,45 @@ function tierConfig(tier: string) {
 
 export default function LeadsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [leads, setLeads] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
+  const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") ?? "");
   const [tierFilter, setTierFilter] = useState(searchParams.get("tier") ?? "all");
-  const [platformFilter, setPlatformFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sort, setSort] = useState("score_desc");
+  const [platformFilter, setPlatformFilter] = useState(searchParams.get("platform") ?? "all");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") ?? "all");
+  const [sort, setSort] = useState(searchParams.get("sort") ?? "score_desc");
   const [apiTierCounts, setApiTierCounts] = useState<Record<string, number>>({});
   const limit = 50;
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Debounce search input
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+      setPage(1);
+    }, 350);
+  }
+
+  // Sync filters to URL for persistence on back navigation
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (tierFilter !== "all") params.set("tier", tierFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (platformFilter !== "all") params.set("platform", platformFilter);
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+    if (sort !== "score_desc") params.set("sort", sort);
+    if (page > 1) params.set("page", String(page));
+    const qs = params.toString();
+    const newUrl = `/leads${qs ? `?${qs}` : ""}`;
+    router.replace(newUrl, { scroll: false });
+  }, [tierFilter, statusFilter, platformFilter, debouncedSearch, sort, page, router]);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -105,7 +137,7 @@ export default function LeadsPage() {
       if (tierFilter !== "all") params.set("tier", tierFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (platformFilter !== "all") params.set("platform", platformFilter);
-      if (search.trim()) params.set("search", search.trim());
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       const res = await fetch(`/api/leads?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -115,7 +147,7 @@ export default function LeadsPage() {
       }
     } catch { toast.error("Failed to load leads"); }
     finally { setLoading(false); }
-  }, [page, tierFilter, statusFilter, platformFilter, search, sort]);
+  }, [page, tierFilter, statusFilter, platformFilter, debouncedSearch, sort]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -137,30 +169,33 @@ export default function LeadsPage() {
     finally { setScoring(false); }
   }
 
-  const totalPages = Math.ceil(total / limit);
+  function clearFilters() {
+    setTierFilter("all");
+    setPlatformFilter("all");
+    setStatusFilter("all");
+    setSearchInput("");
+    setDebouncedSearch("");
+    setPage(1);
+  }
 
-  // Group leads by platform
-  const leadsByPlatform: Record<string, any[]> = {};
-  leads.forEach((l) => {
-    if (!leadsByPlatform[l.platform]) leadsByPlatform[l.platform] = [];
-    leadsByPlatform[l.platform].push(l);
-  });
+  const totalPages = Math.ceil(total / limit);
+  const hasFilters = tierFilter !== "all" || platformFilter !== "all" || statusFilter !== "all" || debouncedSearch;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div data-tour="leads-header" className="flex items-center justify-between">
+      <div data-tour="leads-header" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm text-zinc-500">{total} leads found across all sources</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => {
             const exportParams = new URLSearchParams();
             if (tierFilter !== "all") exportParams.set("tier", tierFilter);
             if (statusFilter !== "all") exportParams.set("status", statusFilter);
             if (platformFilter !== "all") exportParams.set("platform", platformFilter);
-            if (search.trim()) exportParams.set("search", search.trim());
+            if (debouncedSearch.trim()) exportParams.set("search", debouncedSearch.trim());
             const qs = exportParams.toString();
             window.open(`/api/leads/export${qs ? `?${qs}` : ""}`, "_blank");
           }}>
@@ -189,7 +224,7 @@ export default function LeadsPage() {
           const Icon = icons[t];
           return (
             <button key={t}
-              onClick={() => setTierFilter(tierFilter === t ? "all" : t)}
+              onClick={() => { setTierFilter(tierFilter === t ? "all" : t); setPage(1); }}
               className={cn(
                 "flex items-center gap-2 rounded-lg border px-4 py-2 transition-all",
                 tierFilter === t ? "ring-2 ring-zinc-400 bg-zinc-50" : "hover:bg-zinc-50"
@@ -202,16 +237,16 @@ export default function LeadsPage() {
         })}
       </div>
 
-      {/* Filters */}
-      <div data-tour="lead-search" className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      {/* Filters — responsive wrap on mobile */}
+      <div data-tour="lead-search" className="flex flex-wrap items-center gap-3">
+        <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
           <Input placeholder="Search leads..."
-            value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            value={searchInput} onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-9" />
         </div>
         <Select value={platformFilter} onValueChange={(v) => { setPlatformFilter(v ?? "all"); setPage(1); }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="All Sources" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Sources" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sources</SelectItem>
             {Object.entries(platformMeta).map(([key, { label, icon }]) => (
@@ -220,21 +255,16 @@ export default function LeadsPage() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v ?? "all"); setPage(1); }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="NEW">New</SelectItem>
-            <SelectItem value="CONTACTED">Contacted</SelectItem>
-            <SelectItem value="ENGAGED">Engaged</SelectItem>
-            <SelectItem value="SITE_VISIT">Site Visit</SelectItem>
-            <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
-            <SelectItem value="CONVERTED">Converted</SelectItem>
-            <SelectItem value="LOST">Lost</SelectItem>
-            <SelectItem value="NURTURE">Nurture</SelectItem>
+            {Object.entries(statusLabels).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(v) => { setSort(v ?? "score_desc"); setPage(1); }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Sort by" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Sort by" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="score_desc">Score (High-Low)</SelectItem>
             <SelectItem value="score_asc">Score (Low-High)</SelectItem>
@@ -244,9 +274,8 @@ export default function LeadsPage() {
             <SelectItem value="budget_desc">Budget (High-Low)</SelectItem>
           </SelectContent>
         </Select>
-        {(tierFilter !== "all" || platformFilter !== "all" || statusFilter !== "all" || search) && (
-          <Button variant="ghost" size="sm"
-            onClick={() => { setTierFilter("all"); setPlatformFilter("all"); setStatusFilter("all"); setSearch(""); setPage(1); }}>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
             Clear
           </Button>
         )}
@@ -261,8 +290,14 @@ export default function LeadsPage() {
         <div className="flex flex-col items-center py-16 border-2 border-dashed rounded-xl">
           <Search className="mb-3 h-10 w-10 text-zinc-300" />
           <p className="text-lg font-medium text-zinc-500">No leads found</p>
-          <p className="text-sm text-zinc-400 mt-1">Run scraping from the Sources page to discover leads</p>
-          <Link href="/scraping" className="mt-3 text-sm text-blue-500 hover:underline">Go to Lead Sources →</Link>
+          <p className="text-sm text-zinc-400 mt-1">
+            {hasFilters ? "Try adjusting your filters or search terms" : "Run scraping from the Sources page to discover leads"}
+          </p>
+          {hasFilters ? (
+            <Button variant="outline" size="sm" className="mt-3" onClick={clearFilters}>Clear Filters</Button>
+          ) : (
+            <Link href="/scraping" className="mt-3 text-sm text-blue-500 hover:underline">Go to Lead Sources →</Link>
+          )}
         </div>
       ) : (
         <div data-tour="lead-list" className="space-y-3">
@@ -274,10 +309,10 @@ export default function LeadsPage() {
             const areas = lead.preferredArea?.filter(Boolean) ?? [];
 
             return (
-              <Link key={lead.id} href={`/leads/${lead.id}`} className="block">
-                <div className="flex items-start gap-4 rounded-xl border p-4 transition-all hover:border-zinc-300 hover:shadow-sm bg-white dark:bg-zinc-950">
+              <Link key={lead.id} href={`/leads/${lead.id}`} className="block group" aria-label={`${lead.name ?? "Unknown"} — ${pm.label} — Score ${lead.score ?? "unscored"}`}>
+                <div className="flex items-start gap-3 sm:gap-4 rounded-xl border p-3 sm:p-4 transition-all group-hover:border-zinc-300 group-hover:shadow-sm bg-white dark:bg-zinc-950">
                   {/* Score Circle */}
-                  <div className="flex flex-col items-center gap-1 pt-0.5">
+                  <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
                     <div className={cn("flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white", tc.bg)}>
                       {lead.score != null ? lead.score : "?"}
                     </div>
@@ -286,32 +321,32 @@ export default function LeadsPage() {
 
                   {/* Main Content */}
                   <div className="flex-1 min-w-0">
-                    {/* Row 1: Source + User Name */}
+                    {/* Row 1: Source + Last Seen */}
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", pm.color)}>
+                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shrink-0", pm.color)}>
                         {pm.icon} {pm.label}
                       </span>
                       {(lead.source || sourceLabel) && (
-                        <span className="text-xs text-zinc-400">{lead.source || sourceLabel}</span>
+                        <span className="text-xs text-zinc-400 truncate">{lead.source || sourceLabel}</span>
                       )}
                       {lead.lastSeenAt && (
-                        <span className="text-[10px] text-zinc-300 ml-auto">
-                          Last seen {new Date(lead.lastSeenAt).toLocaleDateString()}
+                        <span className="text-[10px] text-zinc-300 ml-auto shrink-0" title={new Date(lead.lastSeenAt).toLocaleString()}>
+                          {formatRelativeTime(lead.lastSeenAt)}
                         </span>
                       )}
                     </div>
 
                     {/* Row 2: User */}
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <User className="h-3.5 w-3.5 text-zinc-400" />
-                      <span className="font-semibold text-sm">{lead.name ?? "Unknown"}</span>
+                      <User className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                      <span className="font-semibold text-sm truncate">{lead.name ?? "Unknown"}</span>
                       {lead.profileUrl && (
                         <a href={lead.profileUrl} target="_blank" rel="noopener noreferrer"
-                          className="text-zinc-400 hover:text-zinc-600" onClick={(e) => e.stopPropagation()}>
+                          className="text-zinc-400 hover:text-zinc-600 shrink-0" onClick={(e) => e.stopPropagation()}>
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       )}
-                      <Badge variant="outline" className="ml-auto text-[10px]">{({"NEW":"New","CONTACTED":"Contacted","ENGAGED":"Engaged","SITE_VISIT":"Site Visit","NEGOTIATION":"Negotiation","CONVERTED":"Converted","LOST":"Lost","NURTURE":"Nurture"} as Record<string,string>)[lead.status] ?? lead.status}</Badge>
+                      <Badge variant="outline" className="ml-auto text-[10px] shrink-0">{statusLabels[lead.status] ?? lead.status}</Badge>
                     </div>
 
                     {/* Row 3: What they said */}
@@ -365,16 +400,16 @@ export default function LeadsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-zinc-500">
             {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}
           </p>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>
               <ChevronLeft className="h-4 w-4" /> Prev
             </Button>
             <span className="text-sm text-zinc-600">Page {page}/{totalPages}</span>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+            <Button variant="outline" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage(page + 1)}>
               Next <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

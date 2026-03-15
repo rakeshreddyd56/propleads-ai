@@ -141,7 +141,7 @@ export default function PlanSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="border-b pb-4">
         <h1 className="text-2xl font-bold">Plans & Settings</h1>
         <p className="text-sm text-zinc-500">Manage your subscription, usage, and notification preferences</p>
       </div>
@@ -298,11 +298,18 @@ export default function PlanSettingsPage() {
                           <Check className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" /><span>{f}</span>
                         </div>
                       ))}
-                      {excluded.slice(0, 3).map((f) => (
-                        <div key={f} className="flex items-start gap-1.5 text-xs text-zinc-400">
-                          <X className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span>{f}</span>
+                      {excluded.length > 0 && (
+                        <div className="border-t pt-1.5 mt-1.5">
+                          {excluded.slice(0, 2).map((f) => (
+                            <div key={f} className="flex items-start gap-1.5 text-xs text-zinc-400 mt-1">
+                              <X className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span>{f}</span>
+                            </div>
+                          ))}
+                          {excluded.length > 2 && (
+                            <p className="text-[10px] text-zinc-400 mt-1 pl-5">+{excluded.length - 2} more in higher plans</p>
+                          )}
                         </div>
-                      ))}
+                      )}
                     </div>
 
                     {!isCurrent ? (

@@ -4,7 +4,7 @@ export default function DashboardLoading() {
   return (
     <div className="space-y-6">
       {/* KPI Cards skeleton — 6 cards in a row */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="rounded-xl border p-4 space-y-3">
             <Skeleton className="h-4 w-24" />

@@ -1,27 +1,32 @@
 import { cn } from "@/lib/utils";
 
-export function ScoreBadge({ score, tier }: { score: number; tier: string }) {
+export function ScoreBadge({ score, tier }: { score: number | null; tier: string | null }) {
+  const safeScore = score ?? 0;
+  const safeTier = tier ?? "COLD";
+
   return (
     <div className="flex items-center gap-2">
       <div
         className={cn(
           "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white",
-          tier === "HOT" && "bg-red-500",
-          tier === "WARM" && "bg-orange-500",
-          tier === "COLD" && "bg-blue-400"
+          safeTier === "HOT" && "bg-red-500",
+          safeTier === "WARM" && "bg-orange-500",
+          safeTier === "COLD" && "bg-blue-400",
+          !["HOT", "WARM", "COLD"].includes(safeTier) && "bg-zinc-300"
         )}
       >
-        {score}
+        {score != null ? safeScore : "?"}
       </div>
       <span
         className={cn(
           "text-xs font-semibold uppercase",
-          tier === "HOT" && "text-red-600",
-          tier === "WARM" && "text-orange-600",
-          tier === "COLD" && "text-blue-500"
+          safeTier === "HOT" && "text-red-600",
+          safeTier === "WARM" && "text-orange-600",
+          safeTier === "COLD" && "text-blue-500",
+          !["HOT", "WARM", "COLD"].includes(safeTier) && "text-zinc-500"
         )}
       >
-        {tier}
+        {score != null ? safeTier : "Unscored"}
       </span>
     </div>
   );

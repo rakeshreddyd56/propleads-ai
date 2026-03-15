@@ -127,3 +127,13 @@
     @apply font-sans;
   }
 }
+
+/* Semantic text utilities */
+.text-label { @apply text-sm font-medium text-zinc-700 dark:text-zinc-300; }
+.text-hint { @apply text-xs text-zinc-500 dark:text-zinc-400; }
+.text-value { @apply text-sm font-semibold text-zinc-900 dark:text-zinc-100; }
+
+/* Focus ring for accessibility */
+:focus-visible {
+  @apply outline-none ring-2 ring-blue-500/50 ring-offset-2 ring-offset-white dark:ring-offset-zinc-950;
+}

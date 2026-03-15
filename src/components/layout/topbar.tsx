@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { Bell, Search, X, Loader2 } from "lucide-react";
+import { Bell, Search, X, Loader2, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useSidebar } from "./sidebar-context";
 
 interface SearchResult {
   type: "lead" | "property";
@@ -17,6 +18,7 @@ interface SearchResult {
 
 export function Topbar() {
   const router = useRouter();
+  const { toggle } = useSidebar();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -84,9 +86,20 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white/80 px-6 backdrop-blur dark:bg-zinc-950/80">
-      <div className="flex items-center gap-4">
-        <div data-tour="search" className="relative w-80" ref={searchRef}>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white/80 px-4 backdrop-blur dark:bg-zinc-950/80 md:px-6">
+      <div className="flex items-center gap-3">
+        {/* Hamburger menu button - visible only on mobile */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={toggle}
+          aria-label="Toggle sidebar"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        <div data-tour="search" className="relative w-48 sm:w-64" ref={searchRef}>
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
           <Input
             placeholder="Search leads, properties..."

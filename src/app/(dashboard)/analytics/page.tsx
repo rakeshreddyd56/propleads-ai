@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="border-b pb-4 mb-2">
         <h1 className="text-2xl font-bold">Analytics</h1>
         <p className="text-sm text-zinc-500">Track your lead generation and conversion performance</p>
       </div>
@@ -108,11 +108,23 @@ export default function AnalyticsPage() {
       {/* Lead Tier Breakdown */}
       {data?.tierBreakdown && data.tierBreakdown.length > 0 && (
         <Card data-tour="tier-breakdown">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Lead Quality Distribution</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Lead Quality Distribution</CardTitle>
+              <div className="flex items-center gap-3">
+                {[{ label: "Hot", color: "bg-red-500" }, { label: "Warm", color: "bg-amber-500" }, { label: "Cold", color: "bg-slate-400" }].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5">
+                    <span className={cn("inline-block h-2.5 w-2.5 rounded-full", item.color)} />
+                    <span className="text-xs text-zinc-500">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardHeader>
           <CardContent>
             <div className="flex gap-4">
               {data.tierBreakdown.map((t: any) => {
-                const colors: Record<string, string> = { HOT: "bg-red-500", WARM: "bg-amber-500", COLD: "bg-zinc-400" };
+                const colors: Record<string, string> = { HOT: "bg-red-500", WARM: "bg-amber-500", COLD: "bg-slate-400" };
                 const total = data.tierBreakdown.reduce((s: number, x: any) => s + x.count, 0);
                 const pct = total > 0 ? Math.round((t.count / total) * 100) : 0;
                 return (
@@ -137,25 +149,44 @@ export default function AnalyticsPage() {
 
       <Card data-tour="source-performance">
         <CardHeader><CardTitle className="text-base">Source Performance</CardTitle></CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {sources.map((s: any) => {
-              const platformLabels: Record<string, string> = {
-                REDDIT: "Reddit", FACEBOOK: "Facebook", TWITTER: "X / Twitter", INSTAGRAM: "Instagram",
-                LINKEDIN: "LinkedIn", YOUTUBE: "YouTube", QUORA: "Quora", TELEGRAM: "Telegram",
-                NINETY_NINE_ACRES: "99acres", MAGICBRICKS: "MagicBricks", NOBROKER: "NoBroker",
-                COMMONFLOOR: "CommonFloor", GOOGLE_MAPS: "Google Maps",
-              };
-              return (
-              <div key={s.platform} className="flex items-center justify-between rounded-lg border p-3">
-                <span className="font-medium">{platformLabels[s.platform] ?? s.platform}</span>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm">{s.count} leads</span>
-                  <span className="text-sm text-zinc-500">Avg score: {s.avgScore}</span>
-                </div>
-              </div>
-              );
-            })}
+        <CardContent className="p-0">
+          <div className="overflow-auto max-h-[400px]">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white dark:bg-zinc-950">
+                <tr className="border-b">
+                  <th className="text-left font-medium text-zinc-500 px-6 py-3">Platform</th>
+                  <th className="text-right font-medium text-zinc-500 px-6 py-3">Leads</th>
+                  <th className="text-right font-medium text-zinc-500 px-6 py-3">Avg Score</th>
+                  {sources.some((s: any) => s.successRate !== undefined) && (
+                    <th className="text-right font-medium text-zinc-500 px-6 py-3">Success Rate</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {sources.map((s: any) => {
+                  const platformLabels: Record<string, string> = {
+                    REDDIT: "Reddit", FACEBOOK: "Facebook", TWITTER: "X / Twitter", INSTAGRAM: "Instagram",
+                    LINKEDIN: "LinkedIn", YOUTUBE: "YouTube", QUORA: "Quora", TELEGRAM: "Telegram",
+                    NINETY_NINE_ACRES: "99acres", MAGICBRICKS: "MagicBricks", NOBROKER: "NoBroker",
+                    COMMONFLOOR: "CommonFloor", GOOGLE_MAPS: "Google Maps",
+                  };
+                  const rate = s.successRate as number | undefined;
+                  const rateColor = rate !== undefined
+                    ? rate >= 80 ? "text-green-600" : rate >= 50 ? "text-amber-600" : "text-red-500"
+                    : "";
+                  return (
+                    <tr key={s.platform} className="hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
+                      <td className="px-6 py-3 font-medium">{platformLabels[s.platform] ?? s.platform}</td>
+                      <td className="px-6 py-3 text-right tabular-nums">{s.count}</td>
+                      <td className="px-6 py-3 text-right tabular-nums text-zinc-500">{s.avgScore}</td>
+                      {rate !== undefined && (
+                        <td className={cn("px-6 py-3 text-right font-semibold tabular-nums", rateColor)}>{rate}%</td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
